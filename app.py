@@ -11,6 +11,80 @@ import json
 import io
 import re
 import os
+import pandas as pd
+from datetime import datetime
+
+# URL Google Sheet và Web App
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=0"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz961krRLznVfsGq0WmjR6E8PECF5QR5YRMIsStd2ut7glTDf2U8TjbCoXWeFwYLmgv7w/exec"
+
+def check_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        st.title("🔐 ĐĂNG NHẬP HỆ THỐNG")
+        tab_login, tab_register = st.tabs(["Đăng nhập", "Đăng ký tài khoản"])
+
+        # TAB 1: ĐĂNG NHẬP
+        with tab_login:
+            username = st.text_input("Tên đăng nhập")
+            password = st.text_input("Mật khẩu", type="password")
+            
+            if st.button("Đăng nhập"):
+                if username == "admin" and password == "Adminai":
+                    st.success("Xin chào Admin!")
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else:
+                    try:
+                        df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                        df.columns = [c.strip() for c in df.columns]
+                        user_match = df[(df['username'].astype(str) == username) & (df['password'].astype(str) == password)]
+                        
+                        if not user_match.empty:
+                            st.success(f"Đăng nhập thành công! Chào mừng {user_match.iloc[0]['fullname']}")
+                            st.session_state.logged_in = True
+                            st.rerun()
+                        else:
+                            st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
+                    except Exception as e:
+                        st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
+
+        # TAB 2: ĐĂNG KÝ
+        with tab_register:
+            new_user = st.text_input("Tên đăng nhập mới")
+            new_name = st.text_input("Họ và tên")
+            new_pass = st.text_input("Mật khẩu mới", type="password")
+            confirm_pass = st.text_input("Xác nhận mật khẩu", type="password")
+
+            if st.button("Đăng ký"):
+                if not new_user or not new_pass or not new_name:
+                    st.warning("Vui lòng điền đầy đủ thông tin!")
+                elif new_pass != confirm_pass:
+                    st.error("Mật khẩu xác nhận không khớp!")
+                else:
+                    payload = {
+                        "username": new_user,
+                        "password": new_pass,
+                        "fullname": new_name,
+                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    try:
+                        res = requests.post(WEB_APP_URL, json=payload)
+                        if res.status_code == 200:
+                            st.success("Đăng ký thành công! Bạn có thể chuyển sang tab Đăng nhập ngay.")
+                        else:
+                            st.error("Lỗi khi đăng ký tài khoản.")
+                    except:
+                        st.error("Không thể kết nối máy chủ đăng ký.")
+
+        return False
+    return True
+
+# Kiểm tra đăng nhập
+if not check_login():
+    st.stop()  # Dừng chương trình nếu chưa đăng nhập
 
 try:
     import openpyxl
