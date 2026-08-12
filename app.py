@@ -22,6 +22,8 @@ def check_login():
         st.session_state.logged_in = False
     if "user_info" not in st.session_state:
         st.session_state.user_info = {}
+    if "reg_missing" not in st.session_state:
+        st.session_state.reg_missing = []
 
     if not st.session_state.logged_in:
         st.title("🔐 ĐĂNG NHẬP HỆ THỐNG")
@@ -29,10 +31,12 @@ def check_login():
 
         # 1. TAB ĐĂNG NHẬP
         with tab_login:
-            username = st.text_input("Tên đăng nhập")
-            password = st.text_input("Mật khẩu", type="password")
-            
-            if st.button("Đăng nhập"):
+            with st.form("login_form"):
+                username = st.text_input("Tên đăng nhập")
+                password = st.text_input("Mật khẩu", type="password")
+                btn_login = st.form_submit_button("Đăng nhập")
+
+            if btn_login:
                 if username == "admin" and password == "Adminai":
                     st.success("Xin chào Admin!")
                     st.session_state.logged_in = True
@@ -59,20 +63,39 @@ def check_login():
                     except Exception as e:
                         st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
 
-        # 2. TAB ĐĂNG KÝ
+        # 2. TAB ĐĂNG KÝ (CÓ ĐÁNH DẤU (*) ĐỎ KHI ĐIỀN THIẾU)
         with tab_register:
-            new_user = st.text_input("Tên đăng nhập mới")
-            new_name = st.text_input("Họ và tên")
-            new_contact = st.text_input("Email hoặc Số điện thoại")
-            new_pass = st.text_input("Mật khẩu mới", type="password")
-            confirm_pass = st.text_input("Xác nhận mật khẩu", type="password")
+            lbl_user = "Tên đăng nhập mới" + (" :red[*]" if "user" in st.session_state.reg_missing else "")
+            lbl_name = "Họ và tên" + (" :red[*]" if "name" in st.session_state.reg_missing else "")
+            lbl_contact = "Email hoặc Số điện thoại" + (" :red[*]" if "contact" in st.session_state.reg_missing else "")
+            lbl_pass = "Mật khẩu mới" + (" :red[*]" if "pass" in st.session_state.reg_missing else "")
+            lbl_conf = "Xác nhận mật khẩu" + (" :red[*]" if "conf" in st.session_state.reg_missing else "")
 
-            if st.button("Đăng ký"):
-                if not new_user or not new_pass or not new_name or not new_contact:
-                    st.warning("Vui lòng điền đầy đủ thông tin!")
+            with st.form("register_form"):
+                new_user = st.text_input(lbl_user, key="reg_user")
+                new_name = st.text_input(lbl_name, key="reg_name")
+                new_contact = st.text_input(lbl_contact, key="reg_contact")
+                new_pass = st.text_input(lbl_pass, type="password", key="reg_pass")
+                confirm_pass = st.text_input(lbl_conf, type="password", key="reg_conf")
+                btn_register = st.form_submit_button("Đăng ký")
+
+            if btn_register:
+                missing = []
+                if not new_user.strip(): missing.append("user")
+                if not new_name.strip(): missing.append("name")
+                if not new_contact.strip(): missing.append("contact")
+                if not new_pass.strip(): missing.append("pass")
+                if not confirm_pass.strip(): missing.append("conf")
+
+                st.session_state.reg_missing = missing
+
+                if missing:
+                    st.warning("Vui lòng điền đầy đủ các thông tin có dấu (*) đỏ!")
+                    st.rerun()
                 elif new_pass != confirm_pass:
                     st.error("Mật khẩu xác nhận không khớp!")
                 else:
+                    st.session_state.reg_missing = []
                     payload = {
                         "action": "register",
                         "username": new_user,
@@ -92,12 +115,14 @@ def check_login():
 
         # 3. TAB QUÊN MẬT KHẨU
         with tab_forgot:
-            fg_user = st.text_input("Nhập Tên đăng nhập của bạn")
-            fg_contact = st.text_input("Nhập Email hoặc Số điện thoại đã đăng ký")
-            fg_new_pass = st.text_input("Mật khẩu mới", type="password", key="fg_p1")
-            fg_confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password", key="fg_p2")
+            with st.form("forgot_form"):
+                fg_user = st.text_input("Nhập Tên đăng nhập của bạn", key="fg_u")
+                fg_contact = st.text_input("Nhập Email hoặc Số điện thoại đã đăng ký", key="fg_c")
+                fg_new_pass = st.text_input("Mật khẩu mới", type="password", key="fg_p1")
+                fg_confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password", key="fg_p2")
+                btn_forgot = st.form_submit_button("Đặt lại mật khẩu")
 
-            if st.button("Đặt lại mật khẩu"):
+            if btn_forgot:
                 if not fg_user or not fg_contact or not fg_new_pass:
                     st.warning("Vui lòng điền đầy đủ thông tin!")
                 elif fg_new_pass != fg_confirm_pass:
@@ -144,6 +169,10 @@ with st.sidebar:
             st.session_state.logged_in = False
             st.session_state.user_info = {}
             st.rerun()
+
+# ==============================================================================
+# PHẦN CODE XỬ LÝ VĂN BẢN VÀ GIAO DIỆN CỦ CỦA ANH GIỮ NGUYÊN BẮT ĐẦU TỪ ĐÂY
+# ==============================================================================
 
 # ==============================================================================
 # BẮT ĐẦU TOÀN BỘ CODE CŨ CỦA PHẦN MỀM (GIỮ NGUYÊN TỪ ĐÂY TRỞ XUỐNG DƯỚI)
