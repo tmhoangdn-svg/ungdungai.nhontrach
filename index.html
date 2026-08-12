@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cổng Thông tin & Soạn thảo Văn bản Hành chính</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Thanh Header chính */
+        header {
+            background-color: #1a365d;
+            color: #ffffff;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        header .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        header span {
+            font-size: 13px;
+            background-color: #2b6cb0;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        /* Menu điều hướng */
+        nav {
+            background-color: #2d3748;
+            padding: 0 30px;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 20px;
+        }
+
+        nav a {
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 12px 15px;
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        nav a:hover, nav a.active {
+            background-color: #3182ce;
+            color: #ffffff;
+        }
+
+        /* Khung nội dung chính chứa App */
+        main {
+            flex: 1;
+            padding: 20px 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-header {
+            background-color: #edf2f7;
+            padding: 10px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        /* Khung Iframe nhúng Streamlit App */
+        iframe {
+            width: 100%;
+            height: 850px;
+            border: none;
+            flex: 1;
+        }
+
+        /* Footer */
+        footer {
+            background-color: #edf2f7;
+            color: #718096;
+            text-align: center;
+            padding: 12px;
+            font-size: 13px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-title">
+            <h1>🏛️ CỔNG THÔNG TIN HÀNH CHÍNH & SOẠN THẢO VĂN BẢN</h1>
+            <span>Phiên bản 1.0</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#" class="active">📄 Cụ thể hóa Văn bản</a></li>
+            <li><a href="#">📚 Hướng dẫn Thể thức</a></li>
+            <li><a href="#">⚙️ Cấu hình Hệ thống</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div class="app-container">
+            <div class="app-header">
+                📌 ỨNG DỤNG HỖ TRỢ CỤ THỂ HÓA VĂN BẢN NỘI BỘ
+            </div>
+            <!-- Nhúng trực tiếp App Streamlit vào đây -->
+            <iframe src="http://localhost:8501/?embed=true"></iframe>
+        </div>
+    </main>
+
+    <footer>
+        © 2026 Hệ thống Soạn thảo & Quản lý Văn bản Nội bộ
+    </footer>
+
+</body>
+</html>
