@@ -1,4 +1,9 @@
 import streamlit as st
+import pandas as pd
+import requests
+from datetime import datetime
+
+# Import các thư viện xử lý file Word cũ của anh
 import docx
 from docx import Document
 from docx.shared import Pt, Cm
@@ -6,27 +11,23 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
-import requests
-import json
-import io
-import re
-import os
-import pandas as pd
-from datetime import datetime
+import json, io, re, os
 
-# URL Google Sheet và Web App
+# Đường link kết nối Google Sheet & Apps Script
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=0"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz961krRLznVfsGq0WmjR6E8PECF5QR5YRMIsStd2ut7glTDf2U8TjbCoXWeFwYLmgv7w/exec"
 
 def check_login():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
+    if "user_info" not in st.session_state:
+        st.session_state.user_info = {}
 
     if not st.session_state.logged_in:
         st.title("🔐 ĐĂNG NHẬP HỆ THỐNG")
-        tab_login, tab_register = st.tabs(["Đăng nhập", "Đăng ký tài khoản"])
+        tab_login, tab_register, tab_forgot = st.tabs(["Đăng nhập", "Đăng ký tài khoản", "Quên mật khẩu"])
 
-        # TAB 1: ĐĂNG NHẬP
+        # 1. TAB ĐĂNG NHẬP
         with tab_login:
             username = st.text_input("Tên đăng nhập")
             password = st.text_input("Mật khẩu", type="password")
@@ -35,6 +36,7 @@ def check_login():
                 if username == "admin" and password == "Adminai":
                     st.success("Xin chào Admin!")
                     st.session_state.logged_in = True
+                    st.session_state.user_info = {"username": "admin", "fullname": "Quản trị viên", "email_phone": "N/A"}
                     st.rerun()
                 else:
                     try:
@@ -43,48 +45,109 @@ def check_login():
                         user_match = df[(df['username'].astype(str) == username) & (df['password'].astype(str) == password)]
                         
                         if not user_match.empty:
-                            st.success(f"Đăng nhập thành công! Chào mừng {user_match.iloc[0]['fullname']}")
+                            user_data = user_match.iloc[0]
+                            st.success(f"Đăng nhập thành công! Chào mừng {user_data['fullname']}")
                             st.session_state.logged_in = True
+                            st.session_state.user_info = {
+                                "username": username,
+                                "fullname": user_data['fullname'],
+                                "email_phone": user_data.get('Email/SĐT', 'N/A')
+                            }
                             st.rerun()
                         else:
                             st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
                     except Exception as e:
                         st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
 
-        # TAB 2: ĐĂNG KÝ
+        # 2. TAB ĐĂNG KÝ
         with tab_register:
             new_user = st.text_input("Tên đăng nhập mới")
             new_name = st.text_input("Họ và tên")
+            new_contact = st.text_input("Email hoặc Số điện thoại")
             new_pass = st.text_input("Mật khẩu mới", type="password")
             confirm_pass = st.text_input("Xác nhận mật khẩu", type="password")
 
             if st.button("Đăng ký"):
-                if not new_user or not new_pass or not new_name:
+                if not new_user or not new_pass or not new_name or not new_contact:
                     st.warning("Vui lòng điền đầy đủ thông tin!")
                 elif new_pass != confirm_pass:
                     st.error("Mật khẩu xác nhận không khớp!")
                 else:
                     payload = {
+                        "action": "register",
                         "username": new_user,
                         "password": new_pass,
                         "fullname": new_name,
+                        "email_phone": new_contact,
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                     try:
                         res = requests.post(WEB_APP_URL, json=payload)
                         if res.status_code == 200:
-                            st.success("Đăng ký thành công! Bạn có thể chuyển sang tab Đăng nhập ngay.")
+                            st.success("Đăng ký thành công! Vui lòng quay lại tab Đăng nhập.")
                         else:
-                            st.error("Lỗi khi đăng ký tài khoản.")
+                            st.error("Lỗi khi tạo tài khoản.")
                     except:
                         st.error("Không thể kết nối máy chủ đăng ký.")
+
+        # 3. TAB QUÊN MẬT KHẨU
+        with tab_forgot:
+            fg_user = st.text_input("Nhập Tên đăng nhập của bạn")
+            fg_contact = st.text_input("Nhập Email hoặc Số điện thoại đã đăng ký")
+            fg_new_pass = st.text_input("Mật khẩu mới", type="password", key="fg_p1")
+            fg_confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password", key="fg_p2")
+
+            if st.button("Đặt lại mật khẩu"):
+                if not fg_user or not fg_contact or not fg_new_pass:
+                    st.warning("Vui lòng điền đầy đủ thông tin!")
+                elif fg_new_pass != fg_confirm_pass:
+                    st.error("Mật khẩu xác nhận không khớp!")
+                else:
+                    try:
+                        df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                        df.columns = [c.strip() for c in df.columns]
+                        match = df[(df['username'].astype(str) == fg_user) & (df['Email/SĐT'].astype(str) == fg_contact)]
+                        
+                        if not match.empty:
+                            payload = {
+                                "action": "update_password",
+                                "username": fg_user,
+                                "new_password": fg_new_pass
+                            }
+                            res = requests.post(WEB_APP_URL, json=payload)
+                            if res.status_code == 200:
+                                st.success("Đổi mật khẩu thành công! Vui lòng quay lại tab Đăng nhập.")
+                            else:
+                                st.error("Lỗi khi cập nhật mật khẩu.")
+                        else:
+                            st.error("Tên đăng nhập và Email/SĐT không khớp!")
+                    except Exception as e:
+                        st.error("Không thể xác minh thông tin.")
 
         return False
     return True
 
-# Kiểm tra đăng nhập
+# Bắt buộc đăng nhập
 if not check_login():
-    st.stop()  # Dừng chương trình nếu chưa đăng nhập
+    st.stop()
+
+# Hiển thị nút Tài khoản / Đăng xuất trên Thanh bên (Sidebar)
+with st.sidebar:
+    st.write("---")
+    user_info = st.session_state.get("user_info", {})
+    with st.popover(f"👤 Tài khoản ({user_info.get('fullname', 'User')})"):
+        st.markdown(f"**Họ tên:** {user_info.get('fullname')}")
+        st.markdown(f"**Username:** {user_info.get('username')}")
+        st.markdown(f"**Liên hệ:** {user_info.get('email_phone')}")
+        st.write("---")
+        if st.button("🚪 Đăng xuất", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_info = {}
+            st.rerun()
+
+# ==============================================================================
+# BẮT ĐẦU TOÀN BỘ CODE CŨ CỦA PHẦN MỀM (GIỮ NGUYÊN TỪ ĐÂY TRỞ XUỐNG DƯỚI)
+# ==============================================================================
 
 try:
     import openpyxl
