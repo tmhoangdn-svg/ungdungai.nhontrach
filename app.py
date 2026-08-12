@@ -13,9 +13,9 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import json, io, re, os
 
-# Đường link kết nối Google Sheet & Apps Script
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=0"
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz961krRLznVfsGq0WmjR6E8PECF5QR5YRMIsStd2ut7glTDf2U8TjbCoXWeFwYLmgv7w/exec"
+# Đường link kết nối Google Sheet & Apps Script MỚI CỦA ANH
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29IrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--Ivg1/exec"
 
 def check_login():
     if "logged_in" not in st.session_state:
@@ -52,10 +52,18 @@ def check_login():
                             user_data = user_match.iloc[0]
                             st.success(f"Đăng nhập thành công! Chào mừng {user_data['fullname']}")
                             st.session_state.logged_in = True
+                            
+                            # Tự động đọc đúng cột email_phone
+                            contact_val = "Chưa cập nhật"
+                            if 'email_phone' in user_data and pd.notna(user_data['email_phone']):
+                                contact_val = str(user_data['email_phone'])
+                            elif 'Email/SĐT' in user_data and pd.notna(user_data['Email/SĐT']):
+                                contact_val = str(user_data['Email/SĐT'])
+
                             st.session_state.user_info = {
                                 "username": username,
                                 "fullname": user_data['fullname'],
-                                "email_phone": user_data.get('Email/SĐT', 'N/A')
+                                "email_phone": contact_val
                             }
                             st.rerun()
                         else:
@@ -63,7 +71,7 @@ def check_login():
                     except Exception as e:
                         st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
 
-        # 2. TAB ĐĂNG KÝ (CÓ ĐÁNH DẤU (*) ĐỎ KHI ĐIỀN THIẾU)
+        # 2. TAB ĐĂNG KÝ (ĐÃ CÓ TRUYỀN EMAIL/SĐT CHUẨN VỀ GOOGLE SHEET)
         with tab_register:
             lbl_user = "Tên đăng nhập mới" + (" :red[*]" if "user" in st.session_state.reg_missing else "")
             lbl_name = "Họ và tên" + (" :red[*]" if "name" in st.session_state.reg_missing else "")
@@ -96,6 +104,7 @@ def check_login():
                     st.error("Mật khẩu xác nhận không khớp!")
                 else:
                     st.session_state.reg_missing = []
+                    # ĐÃ BỔ SUNG "email_phone": new_contact CHUẨN XÁC Ở ĐÂY
                     payload = {
                         "action": "register",
                         "username": new_user,
@@ -131,7 +140,8 @@ def check_login():
                     try:
                         df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
                         df.columns = [c.strip() for c in df.columns]
-                        match = df[(df['username'].astype(str) == fg_user) & (df['Email/SĐT'].astype(str) == fg_contact)]
+                        col_email = 'email_phone' if 'email_phone' in df.columns else 'Email/SĐT'
+                        match = df[(df['username'].astype(str) == fg_user) & (df[col_email].astype(str) == fg_contact)]
                         
                         if not match.empty:
                             payload = {
@@ -170,9 +180,7 @@ with st.sidebar:
             st.session_state.user_info = {}
             st.rerun()
 
-# ==============================================================================
-# PHẦN CODE XỬ LÝ VĂN BẢN VÀ GIAO DIỆN CỦ CỦA ANH GIỮ NGUYÊN BẮT ĐẦU TỪ ĐÂY
-# ==============================================================================
+
 
 # ==============================================================================
 # BẮT ĐẦU TOÀN BỘ CODE CŨ CỦA PHẦN MỀM (GIỮ NGUYÊN TỪ ĐÂY TRỞ XUỐNG DƯỚI)
