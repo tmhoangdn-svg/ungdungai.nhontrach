@@ -19,7 +19,7 @@ SYMBOL_MAP = {
     "Quyết định": "QĐ"
 }
 
-# CSS thiết kế giao diện A4 xem trước chuẩn HD 05 / NĐ 30
+# CSS thiết kế nét gạch tách rời dấu nặng/dấu câu (text-underline-offset & border-bottom)
 a4_css = """
 <style>
 .a4-wrapper {
@@ -57,6 +57,12 @@ a4_css = """
     color: #000000;
     padding: 0px;
 }
+.custom-underline {
+    display: inline-block;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 2px; /* Đẩy nét gạch xa dấu nặng 2px */
+    line-height: 1.1;
+}
 .title-block {
     text-align: center;
     font-weight: bold;
@@ -73,7 +79,7 @@ a4_css = """
 }
 .short-line {
     width: 35%;
-    margin: 4px auto 12px auto;
+    margin: 6px auto 12px auto;
     border: 0;
     border-top: 1px solid #000000;
 }
@@ -265,17 +271,16 @@ if st.session_state.draft_text:
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
-        # Bảng Quốc hiệu HTML chuẩn thể thức Đảng (không gạch chân dưới Tên cơ quan)
+        # Bảng Quốc hiệu dùng class custom-underline tách gạch xa chân chữ
         if the_thuc == "Khối Đảng":
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
-            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
+            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><span class="custom-underline"><b>ĐẢNG CỘNG SẢN VIỆT NAM</b></span><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
         else:
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
-            header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><u>{co_quan.upper()}</u></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
+            header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><span class="custom-underline">{co_quan.upper()}</span></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><span class="custom-underline">Độc lập - Tự do - Hạnh phúc</span></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
-        # Render nội dung (Xử lý riêng Trích yếu cho Kế hoạch/Báo cáo/Tờ trình/Quyết định)
+        # Render nội dung
         body_content = ""
-        is_first_line = True
         is_trich_yeu = False
         
         for line in filtered_lines:
@@ -287,7 +292,7 @@ if st.session_state.draft_text:
                 is_trich_yeu = False
             elif line.isupper() and len(line) < 100 and loai_vb != "Công văn":
                 body_content += f'<div class="title-block">{line}</div>'
-                is_trich_yeu = True  # Dòng kế tiếp sau Tên loại sẽ là Trích yếu
+                is_trich_yeu = True
             elif is_trich_yeu and loai_vb != "Công văn":
                 body_content += f'<div class="trich-yeu-block">{line}</div><hr class="short-line">'
                 is_trich_yeu = False
@@ -302,7 +307,7 @@ if st.session_state.draft_text:
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Hàm xuất file Word (.docx) chuẩn thể thức hình 2
+        # Hàm xuất file Word (.docx)
         def generate_docx(lines_data, agency_name, form_type, doc_type_str, cv_subject):
             doc = docx.Document()
             for section in doc.sections:
@@ -387,7 +392,6 @@ if st.session_state.draft_text:
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
                     
-                    # Thêm đường gạch chân ngắn ở dưới Trích yếu
                     p_line = doc.add_paragraph()
                     p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     p_line.paragraph_format.space_after = Pt(6)
