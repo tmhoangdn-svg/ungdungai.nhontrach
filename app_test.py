@@ -103,7 +103,7 @@ with col2:
     yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn kế hoạch thực hiện từ văn bản đã cung cấp...")
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value="ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH")
 
-# --- MỤC 3 ---
+# --- MỤC 3: FILE MẪU RIÊNG & MẪU GỢI Ý ---
 st.subheader("3. File mẫu riêng & Mẫu gợi ý")
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
@@ -139,6 +139,7 @@ if btn_process:
                 content_parts = []
                 extracted_texts = []
                 
+                # 1. Đọc nội dung các file nguồn đính kèm
                 for uf in uploaded_files:
                     bytes_data = uf.read()
                     if uf.name.lower().endswith('.pdf'):
@@ -146,7 +147,7 @@ if btn_process:
                             reader = pypdf.PdfReader(io.BytesIO(bytes_data))
                             pdf_text = "".join([page.extract_text() or "" for page in reader.pages])
                             if len(pdf_text.strip()) > 50:
-                                extracted_texts.append(f"--- NỘI DUNG FILE {uf.name} ---\n" + pdf_text)
+                                extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + pdf_text)
                             else:
                                 content_parts.append({"mime_type": "application/pdf", "data": bytes_data})
                         except:
@@ -154,23 +155,42 @@ if btn_process:
                     elif uf.name.lower().endswith('.docx'):
                         doc_file = docx.Document(io.BytesIO(bytes_data))
                         docx_text = "\n".join([p.text for p in doc_file.paragraphs])
-                        extracted_texts.append(f"--- NỘI DUNG FILE {uf.name} ---\n" + docx_text)
+                        extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + docx_text)
                     else:
                         content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
+                # 2. Đọc cấu trúc từ File Mẫu Riêng (nếu có tải lên ở Mục 3)
+                custom_template_prompt = ""
+                if custom_template_file is not None:
+                    try:
+                        doc_tpl = docx.Document(io.BytesIO(custom_template_file.read()))
+                        tpl_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
+                        if tpl_text:
+                            custom_template_prompt = f"\nBẮT BUỘC BÁM SÁT MẪU VĂN BẢN RIÊNG DƯỚI ĐÂY CỦA ĐƠN VỊ ĐỂ DỰ THẢO VĂN BẢN (GIỮ NGUYÊN BỐ CỤC, MỤC LỤC VÀ CÁCH XƯNG HÔ):\n--- BẮT ĐẦU MẪU RIÊNG ---\n{tpl_text}\n--- KẾT THÚC MẪU RIÊNG ---\n"
+                    except Exception as tpl_err:
+                        st.warning(f"Không thể đọc file mẫu riêng: {str(tpl_err)}")
+
+                # 3. Đưa thông tin mẫu gợi ý vào prompt
+                de_cuong_prompt = ""
+                if de_cuong_goy_y != "(Không chọn mẫu gợi ý)":
+                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯỜNG MẪU GỢI Ý: {de_cuong_goy_y}"
+
+                # 4. Xây dựng Prompt tổng hợp
                 prompt = f"""
                 Bạn là chuyên gia soạn thảo văn bản hành chính Việt Nam.
                 Hãy soạn thảo phần NỘI DUNG của 01 dự thảo văn bản hoàn chỉnh dựa trên tài liệu đính kèm.
                 
                 THỂ THỨC: {the_thuc} | CƠ QUAN BAN HÀNH: {co_quan} | LOẠI VĂN BẢN: {loai_vb}
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
+                {de_cuong_prompt}
+                {custom_template_prompt}
                 
-                DỮ LIỆU TÀI LIỆU NGUỒN:
+                DỮ LIỆU TÀI LIỆU NGUỒN THAM KHẢO:
                 {"".join(extracted_texts)}
                 
                 QUY CẮC BẮT BUỘC:
-                1. BẮT ĐẦU TRỰC TIẾP BẰNG TÊN LOẠI VĂN BẢN (Ví dụ: KẾ HOẠCH, CÔNG VĂN...) và Trích yếu nội dung.
-                2. TUYỆT ĐỐI KHÔNG VIẾT Quốc hiệu, Tiêu ngữ, Tên cơ quan ban hành, Số/Ký hiệu, Ngày tháng ở đầu bài.
+                1. BẮT ĐẦU TRỰC TIẾP BẰNG TÊN LOẠI VĂN BẢN (Viết hoa in đậm, ví dụ: KẾ HOẠCH) và Trích yếu nội dung.
+                2. TUYỆT ĐỐI KHÔNG VIẾT Quốc hiệu, Tiêu ngữ, Tên cơ quan ban hành, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện đã có khung bảng riêng).
                 3. TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
                 4. Soạn thảo đầy đủ Căn cứ pháp lý, Các mục I, II, III..., Nơi nhận, Chức vụ người ký.
                 """
