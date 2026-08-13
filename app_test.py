@@ -72,7 +72,7 @@ if btn_process:
                 
                 prompt = f"""
                 Bạn là chuyên gia soạn thảo văn bản hành chính Việt Nam.
-                Hãy căn cứ vào tài liệu đính kèm để soạn thảo 01 dự thảo văn bản hoàn chỉnh.
+                Hãy soạn thảo 01 dự thảo văn bản hoàn chỉnh căn cứ vào nội dung được cấp.
                 
                 THỂ THỨC: {the_thuc} | CƠ QUAN BAN HÀNH: {co_quan} | LOẠI VĂN BẢN: {loai_vb}
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
@@ -80,10 +80,10 @@ if btn_process:
                 DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
                 
-                LƯU Ý ĐẶC BIỆT VỀ ĐỊNH DẠNG:
-                - TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN như dấu #, dấu *, dấu ** hay dấu _ trong văn bản.
-                - Trình bày dạng văn bản thuần, các mục ghi rõ 1, 2, 3 hoặc I, II, III.
-                - Trích xuất chính xác 100% căn cứ, số hiệu, ngày ban hành từ file nguồn.
+                QUY CẮC ĐỊNH DẠNG VĂN BẢN (RẤT QUAN TRỌNG):
+                1. TUYỆT ĐỐI KHÔNG DÙNG ký tự Markdown (*, #, _).
+                2. Bố cục đầy đủ từ Quốc hiệu, Tiêu ngữ, Tên cơ quan, Số/Ký hiệu, Trích yếu, Nội dung (I, II, III...), Nơi nhận, Người ký.
+                3. Lời văn chuẩn mực, đúng thể thức hành chính công tác Đảng/Nhà nước.
                 """
                 content_parts.insert(0, prompt)
                 
@@ -93,37 +93,46 @@ if btn_process:
             except Exception as e:
                 st.error(f"Lỗi: {str(e)}")
 
-# --- HÌNH ẢNH HIỂN THỊ TRANG WORD A4 MÔ PHỎNG CHUẨN THỂ THỨC ---
+# --- HIỂN THỊ TRANG XEM TRƯỚC A4 NÂNG CẤP ---
 if st.session_state.draft_text:
     res_col1, res_col2 = st.columns([1.2, 0.8])
     
     with res_col1:
         st.subheader("📄 Bản dự thảo trang Word (A4)")
         
-        # Làm sạch hoàn toàn ký tự Markdown dư thừa
-        clean_text = st.session_state.draft_text
-        clean_text = re.sub(r'[\*#_]', '', clean_text)
+        # 1. Làm sạch ký tự Markdown rác
+        clean_text = re.sub(r'[\*#_]', '', st.session_state.draft_text)
         
-        # Chuyển đổi định dạng HTML hiển thị trang A4
-        lines = clean_text.split('\n')
+        # 2. Phân tích dòng và tạo HTML chuẩn lề hành chính
+        lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
         formatted_html = ""
-        for line in lines:
-            line_str = line.strip()
-            if line_str.startswith("I.") or line_str.startswith("II.") or line_str.startswith("III.") or line_str.startswith("IV.") or line_str.startswith("V."):
-                formatted_html += f'<p style="font-weight: bold; margin-top: 12px; margin-bottom: 4px;">{line_str}</p>'
-            elif line_str.isupper() and len(line_str) < 100:
-                formatted_html += f'<p style="text-align: center; font-weight: bold; font-size: 14pt; margin-top: 15px; margin-bottom: 5px;">{line_str}</p>'
-            else:
-                formatted_html += f'<p style="text-align: justify; text-indent: 1cm; margin-bottom: 4px;">{line_str}</p>'
         
-        # CSS dựng giao diện A4 màu trắng chuẩn lề hành chính
+        for line in lines:
+            # Tiêu đề các mục lớn I, II, III...
+            if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
+                formatted_html += f'<p style="font-weight: bold; font-size: 13pt; margin-top: 14px; margin-bottom: 4px; text-align: left;">{line}</p>'
+            # Các tiểu mục 1, 2, 3...
+            elif re.match(r'^\d+\.', line) and len(line) < 80:
+                formatted_html += f'<p style="font-weight: bold; font-size: 13pt; margin-top: 8px; margin-bottom: 3px; text-align: left;">{line}</p>'
+            # Tên loại văn bản và trích yếu in đậm căn giữa
+            elif line.isupper() and len(line) < 100:
+                formatted_html += f'<p style="text-align: center; font-weight: bold; font-size: 14pt; margin-top: 12px; margin-bottom: 6px;">{line}</p>'
+            # Dòng Kính gửi hoặc gạch đầu dòng
+            elif line.startswith("Kính gửi:") or line.startswith("-"):
+                formatted_html += f'<p style="text-align: left; margin-bottom: 4px; padding-left: 15px;">{line}</p>'
+            # Đoạn văn bản thông thường: Căn đều 2 bên, lùi đầu dòng 1cm
+            else:
+                formatted_html += f'<p style="text-align: justify; text-indent: 1cm; margin-bottom: 6px; line-height: 1.45;">{line}</p>'
+        
+        # 3. CSS tạo giao diện trang A4 phẳng, chuyên nghiệp
         a4_css = """
         <style>
         .a4-container {
-            background-color: #525659;
-            padding: 20px;
+            background-color: #484c4f;
+            padding: 25px 15px;
             display: flex;
             justify-content: center;
+            border-radius: 4px;
         }
         .a4-paper {
             background-color: #ffffff !important;
@@ -132,44 +141,14 @@ if st.session_state.draft_text:
             padding: 40px 45px;
             font-family: 'Times New Roman', Times, serif;
             font-size: 13pt;
-            line-height: 1.42;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-            max-height: 600px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.4);
+            max-height: 620px;
             overflow-y: auto;
-        }
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .header-table td {
-            vertical-align: top;
-            text-align: center;
-            font-family: 'Times New Roman', Times, serif;
-            color: #000000;
         }
         </style>
         """
         
-        # Khung Quốc hiệu - Tiêu ngữ 2 cột chuẩn
-        header_block = f"""
-        <table class="header-table">
-            <tr>
-                <td style="width: 45%;">
-                    <b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br>
-                    <b>{co_quan}</b><br>
-                    *<br>
-                    Số: &nbsp;&nbsp;&nbsp;&nbsp;-KH/ĐU
-                </td>
-                <td style="width: 55%;">
-                    <b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br>
-                    <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
-                </td>
-            </tr>
-        </table>
-        """
-        
-        st.markdown(a4_css + f'<div class="a4-container"><div class="a4-paper">{header_block}{formatted_html}</div></div>', unsafe_allow_html=True)
+        st.markdown(a4_css + f'<div class="a4-container"><div class="a4-paper">{formatted_html}</div></div>', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Hàm xuất file Word (.docx)
