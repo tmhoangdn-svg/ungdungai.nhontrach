@@ -255,6 +255,14 @@ a4_css = """
     margin-bottom: 3px;
 }
 
+/* Thụt lề khối Nơi nhận vào 1cm */
+.noi-nhan-block {
+    padding-left: 1cm !important;
+    text-align: left;
+    font-size: 9.5pt;
+    line-height: 1.2;
+}
+
 /* Khung Chat AI dạng Box xám đen chuẩn giao diện cũ */
 .chat-user-box {
     background-color: #212529;
@@ -461,9 +469,9 @@ if btn_process:
                   - Như trên;
                   - Lưu: VP.
                   T/M BAN THƯỜNG VỤ
-                  PHÓ BÍ THƯ THƯỜNG TRỰC
+                  BÍ THƯ
                   (Để trống khoảng ký tên)
-                  [Họ và tên người ký, ví dụ: Dương Văn Em]
+                  Họ và Tên
                 """
                 content_parts.insert(0, prompt)
                 
@@ -472,7 +480,7 @@ if btn_process:
                 st.session_state.chat_history = []
                 st.success("Đã cụ thể hóa văn bản thành công!")
             except Exception as e:
-                st.error(f"Lỗi xử lý: {str(e)}")
+                st.error(f"Lỗi xử lý API Gemini: {str(e)}")
 
 # --- GIAO DIỆN HIỂN THỊ DỰ THẢO A4 & CHAT AI SỬA ĐỔI ---
 if st.session_state.draft_text:
@@ -484,7 +492,6 @@ if st.session_state.draft_text:
         clean_text = re.sub(r'[\*#_]', '', st.session_state.draft_text)
         raw_lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
         
-        # Lọc bỏ rác tiêu đề thừa
         filtered_lines = []
         for l in raw_lines:
             l_up = l.upper()
@@ -496,14 +503,12 @@ if st.session_state.draft_text:
                 continue
             filtered_lines.append(l)
 
-        # Bóc tách phần Thân bài và phần Nơi nhận / Chữ ký
         body_lines = []
         noi_nhan_list = ["- Như trên;", "- Lưu: VP."]
-        chuc_vu_signer = "T/M BAN THƯỜNG VỤ\nPHÓ BÍ THƯ THƯỜNG TRỰC" if the_thuc == "Khối Đảng" else "TM. ỦY BÂN NHÂN DÂN\nCHỦ TỊCH"
-        ten_signer = "Dương Văn Em"
+        chuc_vu_signer = "T/M BAN THƯỜNG VỤ\nBÍ THƯ" if the_thuc == "Khối Đảng" else "TM. ỦY BÂN NHÂN DÂN\nCHỦ TỊCH"
+        ten_signer = "Họ và Tên"
         
         in_footer = False
-        footer_started = False
         
         for l in filtered_lines:
             l_strip = l.strip()
@@ -511,7 +516,6 @@ if st.session_state.draft_text:
             
             if l_up.startswith("NƠI NHẬN:") or l_up == "NƠI NHẬN":
                 in_footer = True
-                footer_started = True
                 continue
             
             if in_footer:
@@ -520,7 +524,7 @@ if st.session_state.draft_text:
                         noi_nhan_list.append(l_strip)
                 elif any(k in l_up for k in ["T/M", "TM.", "BÍ THƯ", "CHỦ TỊCH", "PHÓ BÍ THƯ"]):
                     chuc_vu_signer = l_strip
-                elif len(l_strip) < 40 and not l_strip.startswith("I") and not l_strip.startswith("1"):
+                elif len(l_strip) < 40 and not l_strip.startswith("I") and not l_strip.startswith("1") and l_strip.lower() != "họ và tên":
                     ten_signer = l_strip
             else:
                 if any(k in l_up for k in ["T/M ", "TM. ", "BÍ THƯ", "CHỦ TỊCH"]) and len(l_strip) < 50:
@@ -537,7 +541,6 @@ if st.session_state.draft_text:
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
-        # BẢNG QUỐC HIỆU HEADER
         if the_thuc == "Khối Đảng":
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
             header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><span class="custom-underline"><b>ĐẢNG CỘNG SẢN VIỆT NAM</b></span><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
@@ -545,7 +548,6 @@ if st.session_state.draft_text:
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
             header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><span class="custom-underline">{co_quan.upper()}</span></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><span class="custom-underline">Độc lập - Tự do - Hạnh phúc</span></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
-        # RENDER THÂN VĂN BẢN
         body_content = ""
         is_trich_yeu = False
         
@@ -569,13 +571,13 @@ if st.session_state.draft_text:
                 body_content += f'<div class="content-para">{line}</div>'
                 is_trich_yeu = False
 
-        # BẢNG NƠI NHẬN & CHỮ KÝ FOOTER CHUẨN THỂ THỨC HÌNH 1
+        # ĐÃ THỤT LỀ CẢ KHỐI NƠI NHẬN VÀO 1CM THEO YÊU CẦU 1
         noi_nhan_html = "<br>".join(noi_nhan_list)
         chuc_vu_html = chuc_vu_signer.replace("\n", "<br>")
         footer_table = f"""
         <table class="footer-table" style="margin-top: 20px;">
             <tr>
-                <td style="width: 45%; text-align: left; font-size: 9.5pt; line-height: 1.2;">
+                <td style="width: 45%; text-align: left; vertical-align: top;" class="noi-nhan-block">
                     <b><u>Nơi nhận:</u></b><br>
                     {noi_nhan_html}
                 </td>
@@ -591,7 +593,7 @@ if st.session_state.draft_text:
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # HÀM XUẤT FILE WORD CHUẨN 2 BẢNG (HEADER VÀ FOOTER NƠI NHẬN)
+        # HÀM XUẤT FILE WORD (.DOCX) ĐÃ ĐƯỢC CẤU HÌNH THỤT LỀ NƠI NHẬN 1CM
         def generate_docx(b_lines, agency_name, form_type, doc_type_str, cv_subj, n_nhan, c_vu, t_ky):
             doc = docx.Document()
             for section in doc.sections:
@@ -600,7 +602,6 @@ if st.session_state.draft_text:
                 section.left_margin = Cm(3)
                 section.right_margin = Cm(2)
             
-            # 1. BẢNG HEADER
             table = doc.add_table(rows=1, cols=2)
             table.alignment = WD_TABLE_ALIGNMENT.CENTER
             table.autofit = False
@@ -661,7 +662,6 @@ if st.session_state.draft_text:
 
             doc.add_paragraph().paragraph_format.space_after = Pt(6)
 
-            # 2. THÂN VĂN BẢN
             next_is_trich_yeu = False
             for line in b_lines:
                 p = doc.add_paragraph()
@@ -706,7 +706,7 @@ if st.session_state.draft_text:
                     run.font.name, run.font.size = 'Times New Roman', Pt(13)
                     next_is_trich_yeu = False
 
-            # 3. BẢNG FOOTER NƠI NHẬN & CHỮ KÝ
+            # CẤU HÌNH THỤT LỀ NƠI NHẬN 1CM TRONG FILE WORD
             doc.add_paragraph().paragraph_format.space_after = Pt(6)
             t_foot = doc.add_table(rows=1, cols=2)
             t_foot.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -718,6 +718,7 @@ if st.session_state.draft_text:
             p_f_l = c_f_left.paragraphs[0]
             p_f_l.alignment = WD_ALIGN_PARAGRAPH.LEFT
             p_f_l.paragraph_format.line_spacing = 1.15
+            p_f_l.paragraph_format.left_indent = Cm(1)  # Thụt lề 1cm
             
             r_nn_title = p_f_l.add_run("Nơi nhận:\n")
             r_nn_title.font.name, r_nn_title.font.size, r_nn_title.font.bold, r_nn_title.font.underline, r_nn_title.font.italic = 'Times New Roman', Pt(11), True, True, True
@@ -749,7 +750,7 @@ if st.session_state.draft_text:
             use_container_width=True
         )
 
-    # --- KHÔI PHỤC HỘP THOẠI CHAT AI CỘT BÊN PHẢI (HÌNH 2) ---
+    # --- KHU VỰC CHAT AI SỬA ĐỔI (ĐÃ BẮT LỖI QUOTA GIÚP BÁO THÔNG BÁO ÊM ÁM) ---
     with res_col2:
         st.subheader("💬 Chat AI sửa đổi (Google Gemini)")
         st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
@@ -768,9 +769,12 @@ if st.session_state.draft_text:
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Lỗi: {str(e)}")
+                        err_str = str(e)
+                        if "429" in err_str or "quota" in err_str.lower():
+                            st.warning("⚠️ API Key của anh đang tạm hết lượt gọi trong ngày (Rate Limit). Anh vui lòng đợi khoảng 1-2 phút rồi bấm lại, hoặc đổi Key Gemini khác ở cột bên trái nhé!")
+                        else:
+                            st.error(f"Lỗi: {err_str}")
 
-        # Lịch sử chat dạng Hộp thoại Box xám có biểu tượng ⏰ và tích xanh 📊
         if st.session_state.chat_history:
             st.markdown("<br>", unsafe_allow_html=True)
             for cmd in reversed(st.session_state.chat_history):
