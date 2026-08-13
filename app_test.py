@@ -21,7 +21,7 @@ SYMBOL_MAP = {
 }
 
 # CSS thu nhỏ tỷ lệ phông chữ xem trước cho vừa vặn cột bên trái
-st.markdown("""
+a4_css = """
 <style>
 .a4-wrapper {
     background-color: #525659;
@@ -35,9 +35,9 @@ st.markdown("""
     background-color: #ffffff !important;
     color: #000000 !important;
     width: 100%;
-    padding: 25px 30px; /* Thu nhỏ lề viền xem trước */
+    padding: 25px 30px;
     font-family: 'Times New Roman', Times, serif;
-    font-size: 10.5pt; /* Chữ thu nhỏ vừa khung 2 cột */
+    font-size: 10.5pt;
     line-height: 1.35;
     box-shadow: 0px 4px 12px rgba(0,0,0,0.4);
     max-height: 600px;
@@ -53,7 +53,7 @@ st.markdown("""
 .header-table td {
     vertical-align: top;
     font-family: 'Times New Roman', Times, serif;
-    font-size: 10pt; /* Chữ tiêu đề thu nhỏ */
+    font-size: 10pt;
     line-height: 1.2;
     color: #000000;
     padding: 0px;
@@ -78,7 +78,8 @@ st.markdown("""
     margin-bottom: 3px;
 }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(a4_css, unsafe_allow_html=True)
 
 # --- CỘT BÊN TRÁI: CẤU HÌNH ---
 with st.sidebar:
@@ -223,7 +224,7 @@ if btn_process:
             except Exception as e:
                 st.error(f"Lỗi xử lý: {str(e)}")
 
-# --- QUAY LẠI GIAO DIỆN 2 CỘT SONG SONG NHƯ CŨ ---
+# --- GIAO DIỆN HIỂN THỊ 2 CỘT ---
 if st.session_state.draft_text:
     res_col1, res_col2 = st.columns([1.2, 0.8])
     
@@ -252,46 +253,15 @@ if st.session_state.draft_text:
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
-        # Bảng Quốc hiệu 2 cột ẩn viền thu nhỏ vừa khung
+        # Bảng Quốc hiệu HTML sạch (không chứa tab/spaces ở đầu dòng)
         if the_thuc == "Khối Đảng":
-            header_table = f"""
-            <table class="header-table">
-                <tr>
-                    <td style="width: 48%; text-align: center;">
-                        <b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br>
-                        <b><u>{co_quan.upper()}</u></b><br>
-                        <span style="font-size: 7pt;">*</span><br>
-                        Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}
-                        {"<br><br><i>" + trich_yeu_cv + "</i>" if trich_yeu_cv else ""}
-                    </td>
-                    <td style="width: 52%; text-align: center;">
-                        <b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br>
-                        <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
-                    </td>
-                </tr>
-            </table>
-            """
+            sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
+            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b><u>{co_quan.upper()}</u></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
         else:
-            header_table = f"""
-            <table class="header-table">
-                <tr>
-                    <td style="width: 45%; text-align: center;">
-                        UBND THÀNH PHỐ ĐỒNG NAI<br>
-                        <b><u>{co_quan.upper()}</u></b><br>
-                        <span style="font-size: 7pt;">*</span><br>
-                        Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}
-                        {"<br><br><i>" + trich_yeu_cv + "</i>" if trich_yeu_cv else ""}
-                    </td>
-                    <td style="width: 55%; text-align: center;">
-                        <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br>
-                        <b><u>Độc lập - Tự do - Hạnh phúc</u></b><br>
-                        <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
-                    </td>
-                </tr>
-            </table>
-            """
+            sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
+            header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><u>{co_quan.upper()}</u></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
-        # Render nội dung thu nhỏ vừa vặn
+        # Render nội dung sạch
         body_content = ""
         for line in filtered_lines:
             if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
@@ -305,10 +275,11 @@ if st.session_state.draft_text:
             else:
                 body_content += f'<div class="content-para">{line}</div>'
 
-        st.markdown(f'<div class="a4-wrapper"><div class="a4-paper">{header_table}{body_content}</div></div>', unsafe_allow_html=True)
+        full_a4_html = f'<div class="a4-wrapper"><div class="a4-paper">{header_table}{body_content}</div></div>'
+        st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Hàm xuất file Word (.docx) vẫn GIỮ NGUYÊN 100% CỠ CHỮ CHUẨN Pt(13) ĐỂ TẢI VỀ
+        # Hàm xuất file Word (.docx)
         def generate_docx(lines_data, agency_name, form_type, doc_type_str, cv_subject):
             doc = docx.Document()
             for section in doc.sections:
@@ -408,7 +379,7 @@ if st.session_state.draft_text:
             use_container_width=True
         )
 
-    # CỘT NẰM BÊN PHẢI: CHAT AI SỬA ĐỔI
+    # CỘT BÊN PHẢI: CHAT AI SỬA ĐỔI
     with res_col2:
         st.subheader("💬 Chat AI sửa đổi (Google Gemini)")
         edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa văn bản...", height=120, placeholder="VD: 'Sửa tên người ký thành Trần Văn A'...")
