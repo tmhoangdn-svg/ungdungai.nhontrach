@@ -10,7 +10,6 @@ import re
 
 st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="📝", layout="wide")
 
-# Bảng ánh xạ mã loại văn bản chuẩn thể thức
 SYMBOL_MAP = {
     "Kế hoạch": "KH",
     "Công văn": "CV",
@@ -20,7 +19,7 @@ SYMBOL_MAP = {
     "Quyết định": "QĐ"
 }
 
-# CSS thu nhỏ tỷ lệ phông chữ xem trước cho vừa vặn cột bên trái
+# CSS thiết kế giao diện A4 xem trước chuẩn HD 05 / NĐ 30
 a4_css = """
 <style>
 .a4-wrapper {
@@ -61,9 +60,22 @@ a4_css = """
 .title-block {
     text-align: center;
     font-weight: bold;
-    font-size: 11.5pt;
+    font-size: 12pt;
     margin-top: 10px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+}
+.trich-yeu-block {
+    text-align: center;
+    font-weight: bold;
+    font-size: 11pt;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+.short-line {
+    width: 35%;
+    margin: 4px auto 12px auto;
+    border: 0;
+    border-top: 1px solid #000000;
 }
 .content-para {
     text-align: justify;
@@ -194,7 +206,7 @@ if btn_process:
                     rule_doc_type = f"""
                     ĐÂY LÀ VĂN BẢN CÓ TÊN LOẠI ({loai_vb.upper()}):
                     1. Dòng đầu tiên ghi TÊN LOẠI VĂN BẢN viết hoa căn giữa (Ví dụ: {loai_vb.upper()}).
-                    2. Dòng tiếp theo ghi Trích yếu nội dung căn giữa bên dưới.
+                    2. Dòng tiếp theo ghi TRÍCH YẾU NỘI DUNG của {loai_vb}.
                     """
 
                 prompt = f"""
@@ -253,33 +265,44 @@ if st.session_state.draft_text:
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
-        # Bảng Quốc hiệu HTML sạch (không chứa tab/spaces ở đầu dòng)
+        # Bảng Quốc hiệu HTML chuẩn thể thức Đảng (không gạch chân dưới Tên cơ quan)
         if the_thuc == "Khối Đảng":
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
-            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b><u>{co_quan.upper()}</u></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
+            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
         else:
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
             header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><u>{co_quan.upper()}</u></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
-        # Render nội dung sạch
+        # Render nội dung (Xử lý riêng Trích yếu cho Kế hoạch/Báo cáo/Tờ trình/Quyết định)
         body_content = ""
+        is_first_line = True
+        is_trich_yeu = False
+        
         for line in filtered_lines:
             if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
                 body_content += f'<div class="heading-para">{line}</div>'
+                is_trich_yeu = False
             elif re.match(r'^\d+\.', line) and len(line) < 80:
                 body_content += f'<div class="heading-para">{line}</div>'
+                is_trich_yeu = False
             elif line.isupper() and len(line) < 100 and loai_vb != "Công văn":
                 body_content += f'<div class="title-block">{line}</div>'
+                is_trich_yeu = True  # Dòng kế tiếp sau Tên loại sẽ là Trích yếu
+            elif is_trich_yeu and loai_vb != "Công văn":
+                body_content += f'<div class="trich-yeu-block">{line}</div><hr class="short-line">'
+                is_trich_yeu = False
             elif line.startswith("Kính gửi:") or line.startswith("-"):
                 body_content += f'<div style="text-align: left; margin-bottom: 4px; padding-left: 10px;">{line}</div>'
+                is_trich_yeu = False
             else:
                 body_content += f'<div class="content-para">{line}</div>'
+                is_trich_yeu = False
 
         full_a4_html = f'<div class="a4-wrapper"><div class="a4-paper">{header_table}{body_content}</div></div>'
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Hàm xuất file Word (.docx)
+        # Hàm xuất file Word (.docx) chuẩn thể thức hình 2
         def generate_docx(lines_data, agency_name, form_type, doc_type_str, cv_subject):
             doc = docx.Document()
             for section in doc.sections:
@@ -304,9 +327,9 @@ if st.session_state.draft_text:
 
             if form_type == "Khối Đảng":
                 r1 = p_left.add_run("ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI\n")
-                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
+                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), False
                 r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
+                r2.font.name, r2.font.size, r2.font.bold = 'Times New Roman', Pt(12), True
                 r3 = p_left.add_run(f"Số:       {code_str}")
                 r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
                 if cv_subject:
@@ -343,28 +366,50 @@ if st.session_state.draft_text:
             p_space = doc.add_paragraph()
             p_space.paragraph_format.space_after = Pt(6)
 
+            next_is_trich_yeu = False
             for line in lines_data:
                 p = doc.add_paragraph()
                 p.paragraph_format.line_spacing = 1.2
                 p.paragraph_format.space_after = Pt(4)
                 
-                if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line) or (line.isupper() and doc_type_str != "Công văn"):
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER if line.isupper() else WD_ALIGN_PARAGRAPH.LEFT
+                if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
+                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
-                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(14 if line.isupper() else 13), True
+                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
+                    next_is_trich_yeu = False
+                elif line.isupper() and doc_type_str != "Công văn":
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = p.add_run(line)
+                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(14), True
+                    next_is_trich_yeu = True
+                elif next_is_trich_yeu and doc_type_str != "Công văn":
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = p.add_run(line)
+                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
+                    
+                    # Thêm đường gạch chân ngắn ở dưới Trích yếu
+                    p_line = doc.add_paragraph()
+                    p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_line.paragraph_format.space_after = Pt(6)
+                    r_line = p_line.add_run("------------------")
+                    r_line.font.name, r_line.font.size, r_line.font.bold = 'Times New Roman', Pt(10), True
+                    next_is_trich_yeu = False
                 elif re.match(r'^\d+\.', line) and len(line) < 80:
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
+                    next_is_trich_yeu = False
                 elif line.startswith("Kính gửi:") or line.startswith("-"):
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
                     run.font.name, run.font.size = 'Times New Roman', Pt(12 if line.startswith("-") else 13)
+                    next_is_trich_yeu = False
                 else:
                     p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                     p.paragraph_format.first_line_indent = Cm(1.27)
                     run = p.add_run(line)
                     run.font.name, run.font.size = 'Times New Roman', Pt(13)
+                    next_is_trich_yeu = False
 
             bio = io.BytesIO()
             doc.save(bio)
