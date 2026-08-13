@@ -15,7 +15,7 @@ import json, io, re, os
 
 # Đường link kết nối Google Sheet & Apps Script MỚI CỦA ANH
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29IrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--Ivg1/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
 
 def check_login():
     if "logged_in" not in st.session_state:
