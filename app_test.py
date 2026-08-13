@@ -8,31 +8,42 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
 import re
 
-# Cấu hình trang Streamlit
 st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="📝", layout="wide")
 
-# CSS tạo trang A4 màu trắng xem trước chuẩn đẹp
+# Bảng ánh xạ mã loại văn bản chuẩn thể thức
+SYMBOL_MAP = {
+    "Kế hoạch": "KH",
+    "Công văn": "CV",
+    "Báo cáo": "BC",
+    "Tờ trình": "TTr",
+    "Thông báo": "TB",
+    "Quyết định": "QĐ"
+}
+
+# CSS thiết kế tờ giấy A4 chuẩn tỷ lệ Word toàn màn hình
 st.markdown("""
 <style>
 .a4-wrapper {
     background-color: #525659;
-    padding: 25px;
-    border-radius: 6px;
+    padding: 30px 15px;
+    border-radius: 8px;
     display: flex;
     justify-content: center;
+    width: 100%;
 }
 .a4-paper {
     background-color: #ffffff !important;
     color: #000000 !important;
-    width: 100%;
-    max-width: 800px;
-    padding: 45px 55px;
+    width: 794px; /* Chiều rộng chuẩn A4 tỷ lệ 96dpi */
+    min-height: 1123px;
+    padding: 20mm 20mm 20mm 30mm; /* Căn lề chuẩn: Trên 2cm, Dưới 2cm, Phải 2cm, Trái 3cm */
     font-family: 'Times New Roman', Times, serif;
     font-size: 13pt;
     line-height: 1.42;
-    box-shadow: 0px 6px 18px rgba(0,0,0,0.4);
-    max-height: 650px;
+    box-shadow: 0px 8px 24px rgba(0,0,0,0.4);
+    max-height: 750px;
     overflow-y: auto;
+    box-sizing: border-box;
 }
 .header-table {
     width: 100%;
@@ -42,7 +53,6 @@ st.markdown("""
 }
 .header-table td {
     vertical-align: top;
-    text-align: center;
     font-family: 'Times New Roman', Times, serif;
     font-size: 12pt;
     line-height: 1.25;
@@ -71,7 +81,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CỘT BÊN TRÁI: CẤU HÌNH THỂ THỨC & AI ---
+# --- CỘT BÊN TRÁI: CẤU HÌNH ---
 with st.sidebar:
     st.title("⚙️ Cấu hình Thể thức & AI")
     the_thuc = st.radio("Chọn Khối văn bản:", ["Khối Đảng", "Khối Nhà nước"])
@@ -100,14 +110,14 @@ with col1:
 
 with col2:
     st.subheader("2. Yêu cầu & Cơ quan ban hành")
-    yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn kế hoạch thực hiện từ văn bản đã cung cấp...")
+    yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...")
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value="ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH")
 
-# --- MỤC 3: FILE MẪU RIÊNG & MẪU GỢI Ý ---
+# --- MỤC 3 ---
 st.subheader("3. File mẫu riêng & Mẫu gợi ý")
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
-    custom_template_file = st.file_uploader("Tải file mẫu riêng (Nếu có file mẫu riêng):", type=["docx"], key="custom_template")
+    custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["docx"], key="custom_template")
 with col3_2:
     de_cuong_goy_y = st.selectbox("📌 Mẫu gợi ý / Đề cương chuẩn:", [
         "(Không chọn mẫu gợi ý)",
@@ -139,7 +149,6 @@ if btn_process:
                 content_parts = []
                 extracted_texts = []
                 
-                # 1. Đọc nội dung các file nguồn đính kèm
                 for uf in uploaded_files:
                     bytes_data = uf.read()
                     if uf.name.lower().endswith('.pdf'):
@@ -159,40 +168,52 @@ if btn_process:
                     else:
                         content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
-                # 2. Đọc cấu trúc từ File Mẫu Riêng (nếu có tải lên ở Mục 3)
                 custom_template_prompt = ""
                 if custom_template_file is not None:
                     try:
                         doc_tpl = docx.Document(io.BytesIO(custom_template_file.read()))
                         tpl_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
                         if tpl_text:
-                            custom_template_prompt = f"\nBẮT BUỘC BÁM SÁT MẪU VĂN BẢN RIÊNG DƯỚI ĐÂY CỦA ĐƠN VỊ ĐỂ DỰ THẢO VĂN BẢN (GIỮ NGUYÊN BỐ CỤC, MỤC LỤC VÀ CÁCH XƯNG HÔ):\n--- BẮT ĐẦU MẪU RIÊNG ---\n{tpl_text}\n--- KẾT THÚC MẪU RIÊNG ---\n"
+                            custom_template_prompt = f"\nBÁM SÁT KHUNG MẪU VĂN BẢN ĐÍNH KÈM (Chỉ học theo thể thức, bố cục mục I, II, III và phong cách trình bày):\n--- MẪU THỂ THỨC KHUNG ---\n{tpl_text}\n--- KẾT THÚC MẪU ---\n"
                     except Exception as tpl_err:
-                        st.warning(f"Không thể đọc file mẫu riêng: {str(tpl_err)}")
+                        st.warning(f"Lỗi đọc file mẫu: {str(tpl_err)}")
 
-                # 3. Đưa thông tin mẫu gợi ý vào prompt
                 de_cuong_prompt = ""
                 if de_cuong_goy_y != "(Không chọn mẫu gợi ý)":
-                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯỜNG MẪU GỢI Ý: {de_cuong_goy_y}"
+                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯỜNG: {de_cuong_goy_y}"
 
-                # 4. Xây dựng Prompt tổng hợp
+                rule_doc_type = ""
+                if loai_vb == "Công văn":
+                    rule_doc_type = """
+                    ĐÂY LÀ CÔNG VĂN HÀNH CHÍNH:
+                    1. TUYỆT ĐỐI KHÔNG VIẾT tiêu đề "CÔNG VĂN" căn giữa trang.
+                    2. Dòng đầu tiên phải ghi rõ Trích yếu nội dung dạng: "V/v [Tóm tắt nội dung công văn]"
+                    3. Ngay sau trích yếu là dòng "Kính gửi: [Tên các cơ quan/đơn vị nhận công văn]".
+                    """
+                else:
+                    rule_doc_type = f"""
+                    ĐÂY LÀ VĂN BẢN CÓ TÊN LOẠI ({loai_vb.upper()}):
+                    1. Dòng đầu tiên ghi TÊN LOẠI VĂN BẢN viết hoa căn giữa (Ví dụ: {loai_vb.upper()}).
+                    2. Dòng tiếp theo ghi Trích yếu nội dung căn giữa bên dưới.
+                    """
+
                 prompt = f"""
                 Bạn là chuyên gia soạn thảo văn bản hành chính Việt Nam.
-                Hãy soạn thảo phần NỘI DUNG của 01 dự thảo văn bản hoàn chỉnh dựa trên tài liệu đính kèm.
+                Hãy soạn thảo nội dung của 01 dự thảo văn bản hoàn chỉnh dựa trên tài liệu đính kèm.
                 
                 THỂ THỨC: {the_thuc} | CƠ QUAN BAN HÀNH: {co_quan} | LOẠI VĂN BẢN: {loai_vb}
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
                 {de_cuong_prompt}
                 {custom_template_prompt}
                 
-                DỮ LIỆU TÀI LIỆU NGUỒN THAM KHẢO:
+                DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
                 
-                QUY CẮC BẮT BUỘC:
-                1. BẮT ĐẦU TRỰC TIẾP BẰNG TÊN LOẠI VĂN BẢN (Viết hoa in đậm, ví dụ: KẾ HOẠCH) và Trích yếu nội dung.
-                2. TUYỆT ĐỐI KHÔNG VIẾT Quốc hiệu, Tiêu ngữ, Tên cơ quan ban hành, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện đã có khung bảng riêng).
-                3. TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
-                4. Soạn thảo đầy đủ Căn cứ pháp lý, Các mục I, II, III..., Nơi nhận, Chức vụ người ký.
+                QUY CẮC THỂ THỨC BẮT BUỘC:
+                {rule_doc_type}
+                - TUYỆT ĐỐI KHÔNG VIẾT Quốc hiệu, Tiêu ngữ, Tên cơ quan ban hành, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện đã tự chèn).
+                - TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
+                - Nội dung bao gồm Căn cứ pháp lý, Các mục nội dung, Nơi nhận, Chức vụ người ký.
                 """
                 content_parts.insert(0, prompt)
                 
@@ -203,196 +224,210 @@ if btn_process:
             except Exception as e:
                 st.error(f"Lỗi xử lý: {str(e)}")
 
-# --- HIỂN THỊ DỰ THẢO A4 & CHAT AI ---
+# --- HIỂN THỊ DỰ THẢO A4 (FULL WIDTH) & CHAT AI Ở DƯỚI ---
 if st.session_state.draft_text:
-    res_col1, res_col2 = st.columns([1.2, 0.8])
+    st.subheader("📄 Bản dự thảo trang Word (A4)")
     
-    with res_col1:
-        st.subheader("📄 Bản dự thảo trang Word (A4)")
-        
-        # Làm sạch ký tự Markdown rác
-        clean_text = re.sub(r'[\*#_]', '', st.session_state.draft_text)
-        lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
-        
-        # Lọc bỏ tiêu đề đúp ở đầu bài
-        filtered_lines = []
-        for l in lines:
-            l_up = l.upper()
-            if any(k in l_up for k in ["ĐẢNG BỘ", "ĐẢNG CỘNG SẢN", "CỘNG HÒA XÃ HỘI", "ĐỘC LẬP - TỰ DO", "NHƠN TRẠCH, NGÀY"]) and len(l) < 80:
-                continue
-            if ("UBND" in l_up or "ĐẢNG ỦY" in l_up) and len(l) < 60 and not l_up.startswith("KẾ HOẠCH") and not l_up.startswith("CÔNG VĂN"):
-                continue
-            if re.match(r'^SỐ\s*:', l_up) or re.match(r'^SỐ\s*-', l_up):
-                continue
-            filtered_lines.append(l)
+    clean_text = re.sub(r'[\*#_]', '', st.session_state.draft_text)
+    lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
+    
+    filtered_lines = []
+    for l in lines:
+        l_up = l.upper()
+        if any(k in l_up for k in ["ĐẢNG BỘ", "ĐẢNG CỘNG SẢN", "CỘNG HÒA XÃ HỘI", "ĐỘC LẬP - TỰ DO", "NHƠN TRẠCH, NGÀY"]) and len(l) < 80:
+            continue
+        if ("UBND" in l_up or "ĐẢNG ỦY" in l_up) and len(l) < 60 and not l_up.startswith("KẾ HOẠCH") and not l_up.startswith("CÔNG VĂN"):
+            continue
+        if re.match(r'^SỐ\s*:', l_up) or re.match(r'^SỐ\s*-', l_up):
+            continue
+        filtered_lines.append(l)
 
-        # 1. Khung Quốc hiệu 2 cột ẩn viền chuẩn
-        if the_thuc == "Khối Đảng":
-            header_table = f"""
-            <table class="header-table">
-                <tr>
-                    <td style="width: 48%;">
-                        <b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br>
-                        <b><u>{co_quan.upper()}</u></b><br>
-                        <span style="font-size: 8pt;">*</span><br>
-                        Số: &nbsp;&nbsp;&nbsp;&nbsp;-KH/ĐU
-                    </td>
-                    <td style="width: 52%;">
-                        <b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br>
-                        <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
-                    </td>
-                </tr>
-            </table>
-            """
+    trich_yeu_cv = ""
+    if loai_vb == "Công văn" and filtered_lines:
+        if filtered_lines[0].startswith("V/v") or filtered_lines[0].startswith("Về việc"):
+            trich_yeu_cv = filtered_lines.pop(0)
+
+    type_code = SYMBOL_MAP.get(loai_vb, "CV")
+    so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
+
+    # Bảng Quốc hiệu 2 cột
+    if the_thuc == "Khối Đảng":
+        header_table = f"""
+        <table class="header-table">
+            <tr>
+                <td style="width: 48%; text-align: center;">
+                    <b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br>
+                    <b><u>{co_quan.upper()}</u></b><br>
+                    <span style="font-size: 8pt;">*</span><br>
+                    Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}
+                    {"<br><br><i>" + trich_yeu_cv + "</i>" if trich_yeu_cv else ""}
+                </td>
+                <td style="width: 52%; text-align: center;">
+                    <b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><br>
+                    <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
+                </td>
+            </tr>
+        </table>
+        """
+    else:
+        header_table = f"""
+        <table class="header-table">
+            <tr>
+                <td style="width: 45%; text-align: center;">
+                    UBND THÀNH PHỐ ĐỒNG NAI<br>
+                    <b><u>{co_quan.upper()}</u></b><br>
+                    <span style="font-size: 8pt;">*</span><br>
+                    Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}
+                    {"<br><br><i>" + trich_yeu_cv + "</i>" if trich_yeu_cv else ""}
+                </td>
+                <td style="width: 55%; text-align: center;">
+                    <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br>
+                    <b><u>Độc lập - Tự do - Hạnh phúc</u></b><br>
+                    <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
+                </td>
+            </tr>
+        </table>
+        """
+
+    # Render nội dung
+    body_content = ""
+    for line in filtered_lines:
+        if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
+            body_content += f'<div class="heading-para">{line}</div>'
+        elif re.match(r'^\d+\.', line) and len(line) < 80:
+            body_content += f'<div class="heading-para">{line}</div>'
+        elif line.isupper() and len(line) < 100 and loai_vb != "Công văn":
+            body_content += f'<div class="title-block">{line}</div>'
+        elif line.startswith("Kính gửi:") or line.startswith("-"):
+            body_content += f'<div style="text-align: left; margin-bottom: 4px; padding-left: 15px;">{line}</div>'
         else:
-            header_table = f"""
-            <table class="header-table">
-                <tr>
-                    <td style="width: 45%;">
-                        UBND THÀNH PHỐ ĐỒNG NAI<br>
-                        <b><u>{co_quan.upper()}</u></b><br>
-                        <span style="font-size: 8pt;">*</span><br>
-                        Số: &nbsp;&nbsp;&nbsp;&nbsp;/UBND-VP
-                    </td>
-                    <td style="width: 55%;">
-                        <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br>
-                        <b><u>Độc lập - Tự do - Hạnh phúc</u></b><br>
-                        <i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i>
-                    </td>
-                </tr>
-            </table>
-            """
+            body_content += f'<div class="content-para">{line}</div>'
 
-        # 2. Render nội dung
-        body_content = ""
-        for line in filtered_lines:
-            if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
-                body_content += f'<div class="heading-para">{line}</div>'
-            elif re.match(r'^\d+\.', line) and len(line) < 80:
-                body_content += f'<div class="heading-para">{line}</div>'
-            elif line.isupper() and len(line) < 100:
-                body_content += f'<div class="title-block">{line}</div>'
-            elif line.startswith("Kính gửi:") or line.startswith("-"):
-                body_content += f'<div style="text-align: left; margin-bottom: 4px; padding-left: 15px;">{line}</div>'
-            else:
-                body_content += f'<div class="content-para">{line}</div>'
+    st.markdown(f'<div class="a4-wrapper"><div class="a4-paper">{header_table}{body_content}</div></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        st.markdown(f'<div class="a4-wrapper"><div class="a4-paper">{header_table}{body_content}</div></div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # 3. Hàm xuất file Word chuẩn thể thức hành chính
-        def generate_docx(lines_data, agency_name, form_type):
-            doc = docx.Document()
-            for section in doc.sections:
-                section.top_margin = Cm(2)
-                section.bottom_margin = Cm(2)
-                section.left_margin = Cm(3)
-                section.right_margin = Cm(2)
-            
-            table = doc.add_table(rows=1, cols=2)
-            table.alignment = WD_TABLE_ALIGNMENT.CENTER
-            table.autofit = False
-            
-            cell_left, cell_right = table.cell(0, 0), table.cell(0, 1)
-            cell_left.width, cell_right.width = Cm(8.5), Cm(8.5)
-            
-            p_left = cell_left.paragraphs[0]
-            p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_left.paragraph_format.line_spacing = 1.15
-            
-            if form_type == "Khối Đảng":
-                r1 = p_left.add_run("ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI\n")
-                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
-                r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
-                r3 = p_left.add_run("Số:       -KH/ĐU")
-                r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
-            else:
-                r1 = p_left.add_run("UBND THÀNH PHỐ ĐỒNG NAI\n")
-                r1.font.name, r1.font.size = 'Times New Roman', Pt(12)
-                r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
-                r3 = p_left.add_run("Số:       /UBND-VP")
-                r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
-
-            p_right = cell_right.paragraphs[0]
-            p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_right.paragraph_format.line_spacing = 1.15
-            
-            if form_type == "Khối Đảng":
-                r1 = p_right.add_run("ĐẢNG CỘNG SẢN VIỆT NAM\n")
-                r1.font.name, r1.font.size, r1.font.bold, r1.font.underline = 'Times New Roman', Pt(12), True, True
-                r2 = p_right.add_run("\nNhơn Trạch, ngày     tháng 8 năm 2026")
-                r2.font.name, r2.font.size, r2.font.italic = 'Times New Roman', Pt(12), True
-            else:
-                r1 = p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n")
-                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
-                r2 = p_right.add_run("Độc lập - Tự do - Hạnh phúc\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12.5), True, True
-                r3 = p_right.add_run("Nhơn Trạch, ngày     tháng 8 năm 2026")
-                r3.font.name, r3.font.size, r3.font.italic = 'Times New Roman', Pt(12), True
-
-            p_space = doc.add_paragraph()
-            p_space.paragraph_format.space_after = Pt(6)
-
-            for line in lines_data:
-                p = doc.add_paragraph()
-                p.paragraph_format.line_spacing = 1.2
-                p.paragraph_format.space_after = Pt(4)
-                
-                if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line) or line.isupper():
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER if line.isupper() else WD_ALIGN_PARAGRAPH.LEFT
-                    run = p.add_run(line)
-                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(14 if line.isupper() else 13), True
-                elif re.match(r'^\d+\.', line) and len(line) < 80:
-                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    run = p.add_run(line)
-                    run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
-                elif line.startswith("Kính gửi:") or line.startswith("-"):
-                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    run = p.add_run(line)
-                    run.font.name, run.font.size = 'Times New Roman', Pt(12 if line.startswith("-") else 13)
-                else:
-                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                    p.paragraph_format.first_line_indent = Cm(1.27)
-                    run = p.add_run(line)
-                    run.font.name, run.font.size = 'Times New Roman', Pt(13)
-
-            bio = io.BytesIO()
-            doc.save(bio)
-            return bio.getvalue()
-
-        st.download_button(
-            label="📥 TẢI VỀ FILE WORD (.DOCX)",
-            data=generate_docx(filtered_lines, co_quan, the_thuc),
-            file_name="Du_Thao_Van_Ban_Hanh_Chinh.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            type="primary",
-            use_container_width=True
-        )
-
-    # --- CỘT PHẢI: CHAT AI SỬA ĐỔI ---
-    with res_col2:
-        st.subheader("💬 Chat AI sửa đổi (Google Gemini)")
-        edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa văn bản...", height=120, placeholder="VD: 'Sửa tên người ký thành Trần Văn A'...")
+    # Nút Tải file Word
+    def generate_docx(lines_data, agency_name, form_type, doc_type_str, cv_subject):
+        doc = docx.Document()
+        for section in doc.sections:
+            section.top_margin = Cm(2)
+            section.bottom_margin = Cm(2)
+            section.left_margin = Cm(3)
+            section.right_margin = Cm(2)
         
-        if st.button("Chỉnh sửa dự thảo", use_container_width=True):
-            if edit_instruction and api_key:
-                with st.spinner("AI đang cập nhật lại dự thảo..."):
-                    try:
-                        genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel(model_name)
-                        edit_prompt = f"BẢN DỰ THẢO HIỆN TẠI:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA:\n{edit_instruction}\n\nHãy cập nhật toàn bộ bản dự thảo văn bản. TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN (*, #, _)."
-                        res_edit = model.generate_content(edit_prompt)
-                        st.session_state.draft_text = res_edit.text
-                        st.session_state.chat_history.append(edit_instruction)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Lỗi: {str(e)}")
+        table = doc.add_table(rows=1, cols=2)
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        table.autofit = False
+        
+        cell_left, cell_right = table.cell(0, 0), table.cell(0, 1)
+        cell_left.width, cell_right.width = Cm(8.5), Cm(8.5)
+        
+        p_left = cell_left.paragraphs[0]
+        p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_left.paragraph_format.line_spacing = 1.15
+        
+        t_code = SYMBOL_MAP.get(doc_type_str, "CV")
+        code_str = f"-{t_code}/ĐU" if form_type == "Khối Đảng" else f"/{t_code}-UBND"
 
-        if st.session_state.chat_history:
-            st.markdown("---")
-            st.markdown("**Lịch sử chỉnh sửa:**")
-            for idx, cmd in enumerate(reversed(st.session_state.chat_history)):
-                st.info(f"🔴 {cmd}")
-                st.success("✅ Đã cập nhật văn bản lên trang Word!")
+        if form_type == "Khối Đảng":
+            r1 = p_left.add_run("ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI\n")
+            r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
+            r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
+            r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
+            r3 = p_left.add_run(f"Số:       {code_str}")
+            r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
+            if cv_subject:
+                r4 = p_left.add_run(f"\n\n{cv_subject}")
+                r4.font.name, r4.font.size, r4.font.italic = 'Times New Roman', Pt(11), True
+        else:
+            r1 = p_left.add_run("UBND THÀNH PHỐ ĐỒNG NAI\n")
+            r1.font.name, r1.font.size = 'Times New Roman', Pt(12)
+            r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
+            r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
+            r3 = p_left.add_run(f"Số:       {code_str}")
+            r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
+            if cv_subject:
+                r4 = p_left.add_run(f"\n\n{cv_subject}")
+                r4.font.name, r4.font.size, r4.font.italic = 'Times New Roman', Pt(11), True
+
+        p_right = cell_right.paragraphs[0]
+        p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_right.paragraph_format.line_spacing = 1.15
+        
+        if form_type == "Khối Đảng":
+            r1 = p_right.add_run("ĐẢNG CỘNG SẢN VIỆT NAM\n")
+            r1.font.name, r1.font.size, r1.font.bold, r1.font.underline = 'Times New Roman', Pt(12), True, True
+            r2 = p_right.add_run("\nNhơn Trạch, ngày     tháng 8 năm 2026")
+            r2.font.name, r2.font.size, r2.font.italic = 'Times New Roman', Pt(12), True
+        else:
+            r1 = p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n")
+            r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
+            r2 = p_right.add_run("Độc lập - Tự do - Hạnh phúc\n")
+            r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12.5), True, True
+            r3 = p_right.add_run("Nhơn Trạch, ngày     tháng 8 năm 2026")
+            r3.font.name, r3.font.size, r3.font.italic = 'Times New Roman', Pt(12), True
+
+        p_space = doc.add_paragraph()
+        p_space.paragraph_format.space_after = Pt(6)
+
+        for line in lines_data:
+            p = doc.add_paragraph()
+            p.paragraph_format.line_spacing = 1.2
+            p.paragraph_format.space_after = Pt(4)
+            
+            if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line) or (line.isupper() and doc_type_str != "Công văn"):
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER if line.isupper() else WD_ALIGN_PARAGRAPH.LEFT
+                run = p.add_run(line)
+                run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(14 if line.isupper() else 13), True
+            elif re.match(r'^\d+\.', line) and len(line) < 80:
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                run = p.add_run(line)
+                run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
+            elif line.startswith("Kính gửi:") or line.startswith("-"):
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                run = p.add_run(line)
+                run.font.name, run.font.size = 'Times New Roman', Pt(12 if line.startswith("-") else 13)
+            else:
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                p.paragraph_format.first_line_indent = Cm(1.27)
+                run = p.add_run(line)
+                run.font.name, run.font.size = 'Times New Roman', Pt(13)
+
+        bio = io.BytesIO()
+        doc.save(bio)
+        return bio.getvalue()
+
+    st.download_button(
+        label="📥 TẢI VỀ FILE WORD (.DOCX)",
+        data=generate_docx(filtered_lines, co_quan, the_thuc, loai_vb, trich_yeu_cv),
+        file_name="Du_Thao_Van_Ban_Hanh_Chinh.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        type="primary",
+        use_container_width=True
+    )
+
+    st.markdown("---")
+
+    # KHU VỰC CHAT AI SỬA ĐỔI ĐƯỢC DỜI XUỐNG DƯỚI DỰ THẢO
+    st.subheader("💬 Chat AI sửa đổi (Google Gemini)")
+    edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa văn bản...", height=100, placeholder="VD: 'Bổ sung mốc thời gian 30/9 vào Mục II', 'Sửa tên người ký thành Trần Văn A'...")
+    
+    if st.button("Chỉnh sửa dự thảo", use_container_width=True):
+        if edit_instruction and api_key:
+            with st.spinner("AI đang cập nhật lại dự thảo..."):
+                try:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_name)
+                    edit_prompt = f"BẢN DỰ THẢO HIỆN TẠI:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA:\n{edit_instruction}\n\nHãy cập nhật toàn bộ bản dự thảo văn bản. TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN (*, #, _)."
+                    res_edit = model.generate_content(edit_prompt)
+                    st.session_state.draft_text = res_edit.text
+                    st.session_state.chat_history.append(edit_instruction)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi: {str(e)}")
+
+    if st.session_state.chat_history:
+        st.markdown("**Lịch sử chỉnh sửa:**")
+        for idx, cmd in enumerate(reversed(st.session_state.chat_history)):
+            st.info(f"🔴 {cmd}")
+            st.success("✅ Đã cập nhật văn bản lên trang Word!")
