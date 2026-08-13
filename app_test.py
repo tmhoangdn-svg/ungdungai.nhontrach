@@ -5,6 +5,8 @@ import docx
 from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 import io
 import re
 
@@ -19,7 +21,13 @@ SYMBOL_MAP = {
     "Quyết định": "QĐ"
 }
 
-# CSS thiết kế nét gạch tách rời dấu nặng/dấu câu (text-underline-offset & border-bottom)
+# Hàm thêm đường kẻ dưới paragraph trong Word (đẩy xa dấu nặng 5pt)
+def add_paragraph_bottom_border(paragraph, sz="6", space="5", color="000000"):
+    pPr = paragraph._p.get_or_add_pPr()
+    pBdr = parse_xml(f'<w:pBdr {nsdecls("w")}><w:bottom w:val="single" w:sz="{sz}" w:space="{space}" w:color="{color}"/></w:pBdr>')
+    pPr.append(pBdr)
+
+# CSS thiết kế giao diện A4 xem trước
 a4_css = """
 <style>
 .a4-wrapper {
@@ -60,7 +68,7 @@ a4_css = """
 .custom-underline {
     display: inline-block;
     border-bottom: 1px solid #000000;
-    padding-bottom: 2px; /* Đẩy nét gạch xa dấu nặng 2px */
+    padding-bottom: 2px;
     line-height: 1.1;
 }
 .title-block {
@@ -271,7 +279,6 @@ if st.session_state.draft_text:
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
-        # Bảng Quốc hiệu dùng class custom-underline tách gạch xa chân chữ
         if the_thuc == "Khối Đảng":
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
             header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><span class="custom-underline"><b>ĐẢNG CỘNG SẢN VIỆT NAM</b></span><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
@@ -279,7 +286,6 @@ if st.session_state.draft_text:
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
             header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><span class="custom-underline">{co_quan.upper()}</span></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><span class="custom-underline">Độc lập - Tự do - Hạnh phúc</span></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
-        # Render nội dung
         body_content = ""
         is_trich_yeu = False
         
@@ -307,7 +313,7 @@ if st.session_state.draft_text:
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Hàm xuất file Word (.docx)
+        # Hàm xuất file Word (.docx) chuẩn không dính gạch vào dấu nặng
         def generate_docx(lines_data, agency_name, form_type, doc_type_str, cv_subject):
             doc = docx.Document()
             for section in doc.sections:
@@ -323,92 +329,179 @@ if st.session_state.draft_text:
             cell_left, cell_right = table.cell(0, 0), table.cell(0, 1)
             cell_left.width, cell_right.width = Cm(8.5), Cm(8.5)
             
-            p_left = cell_left.paragraphs[0]
-            p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_left.paragraph_format.line_spacing = 1.15
-            
             t_code = SYMBOL_MAP.get(doc_type_str, "CV")
             code_str = f"-{t_code}/ĐU" if form_type == "Khối Đảng" else f"/{t_code}-UBND"
 
+            # Xử lý Cột trái Header
             if form_type == "Khối Đảng":
-                r1 = p_left.add_run("ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI\n")
-                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), False
-                r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
-                r2.font.name, r2.font.size, r2.font.bold = 'Times New Roman', Pt(12), True
-                r3 = p_left.add_run(f"Số:       {code_str}")
-                r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
-                if cv_subject:
-                    r4 = p_left.add_run(f"\n\n{cv_subject}")
-                    r4.font.name, r4.font.size, r4.font.italic = 'Times New Roman', Pt(11), True
-            else:
-                r1 = p_left.add_run("UBND THÀNH PHỐ ĐỒNG NAI\n")
-                r1.font.name, r1.font.size = 'Times New Roman', Pt(12)
-                r2 = p_left.add_run(f"{agency_name.upper()}\n*\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12), True, True
-                r3 = p_left.add_run(f"Số:       {code_str}")
-                r3.font.name, r3.font.size = 'Times New Roman', Pt(12)
-                if cv_subject:
-                    r4 = p_left.add_run(f"\n\n{cv_subject}")
-                    r4.font.name, r4.font.size, r4.font.italic = 'Times New Roman', Pt(11), True
+                p_l1 = cell_left.paragraphs[0]
+                p_l1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l1.paragraph_format.line_spacing = 1.15
+                p_l1.paragraph_format.space_after = Pt(0)
+                r = p_l1.add_run("ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI")
+                r.font.name, r.font.size = 'Times New Roman', Pt(12)
 
-            p_right = cell_right.paragraphs[0]
-            p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_right.paragraph_format.line_spacing = 1.15
-            
-            if form_type == "Khối Đảng":
-                r1 = p_right.add_run("ĐẢNG CỘNG SẢN VIỆT NAM\n")
-                r1.font.name, r1.font.size, r1.font.bold, r1.font.underline = 'Times New Roman', Pt(12), True, True
-                r2 = p_right.add_run("\nNhơn Trạch, ngày     tháng 8 năm 2026")
-                r2.font.name, r2.font.size, r2.font.italic = 'Times New Roman', Pt(12), True
+                p_l2 = cell_left.add_paragraph()
+                p_l2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l2.paragraph_format.line_spacing = 1.15
+                p_l2.paragraph_format.space_after = Pt(0)
+                r = p_l2.add_run(agency_name.upper())
+                r.font.name, r.font.size, r.font.bold = 'Times New Roman', Pt(12), True
+
+                p_l3 = cell_left.add_paragraph()
+                p_l3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l3.paragraph_format.line_spacing = 1.15
+                p_l3.paragraph_format.space_after = Pt(2)
+                r = p_l3.add_run("*")
+                r.font.name, r.font.size = 'Times New Roman', Pt(9)
+
+                p_l4 = cell_left.add_paragraph()
+                p_l4.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l4.paragraph_format.line_spacing = 1.15
+                p_l4.paragraph_format.space_after = Pt(0)
+                r = p_l4.add_run(f"Số:       {code_str}")
+                r.font.name, r.font.size = 'Times New Roman', Pt(12)
+
+                if cv_subject:
+                    p_l5 = cell_left.add_paragraph()
+                    p_l5.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_l5.paragraph_format.space_before = Pt(6)
+                    r = p_l5.add_run(cv_subject)
+                    r.font.name, r.font.size, r.font.italic = 'Times New Roman', Pt(11), True
             else:
-                r1 = p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n")
-                r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
-                r2 = p_right.add_run("Độc lập - Tự do - Hạnh phúc\n")
-                r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12.5), True, True
-                r3 = p_right.add_run("Nhơn Trạch, ngày     tháng 8 năm 2026")
-                r3.font.name, r3.font.size, r3.font.italic = 'Times New Roman', Pt(12), True
+                p_l1 = cell_left.paragraphs[0]
+                p_l1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l1.paragraph_format.line_spacing = 1.15
+                p_l1.paragraph_format.space_after = Pt(0)
+                r = p_l1.add_run("UBND THÀNH PHỐ ĐỒNG NAI")
+                r.font.name, r.font.size = 'Times New Roman', Pt(12)
+
+                p_l2 = cell_left.add_paragraph()
+                p_l2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l2.paragraph_format.line_spacing = 1.15
+                p_l2.paragraph_format.space_after = Pt(0)
+                r = p_l2.add_run(agency_name.upper())
+                r.font.name, r.font.size, r.font.bold = 'Times New Roman', Pt(12), True
+                add_paragraph_bottom_border(p_l2, sz="6", space="4")
+
+                p_l3 = cell_left.add_paragraph()
+                p_l3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l3.paragraph_format.line_spacing = 1.15
+                p_l3.paragraph_format.space_after = Pt(2)
+                r = p_l3.add_run("*")
+                r.font.name, r.font.size = 'Times New Roman', Pt(9)
+
+                p_l4 = cell_left.add_paragraph()
+                p_l4.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_l4.paragraph_format.line_spacing = 1.15
+                p_l4.paragraph_format.space_after = Pt(0)
+                r = p_l4.add_run(f"Số:       {code_str}")
+                r.font.name, r.font.size = 'Times New Roman', Pt(12)
+
+                if cv_subject:
+                    p_l5 = cell_left.add_paragraph()
+                    p_l5.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_l5.paragraph_format.space_before = Pt(6)
+                    r = p_l5.add_run(cv_subject)
+                    r.font.name, r.font.size, r.font.italic = 'Times New Roman', Pt(11), True
+
+            # Xử lý Cột phải Header (Dùng viền gạch tách xa chân chữ 5pt)
+            if form_type == "Khối Đảng":
+                p_r1 = cell_right.paragraphs[0]
+                p_r1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_r1.paragraph_format.line_spacing = 1.15
+                p_r1.paragraph_format.space_after = Pt(6)
+                r = p_r1.add_run("ĐẢNG CỘNG SẢN VIỆT NAM")
+                r.font.name, r.font.size, r.font.bold = 'Times New Roman', Pt(12), True
+                add_paragraph_bottom_border(p_r1, sz="6", space="5")
+
+                p_r2 = cell_right.add_paragraph()
+                p_r2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_r2.paragraph_format.line_spacing = 1.15
+                p_r2.paragraph_format.space_after = Pt(0)
+                r = p_r2.add_run("Nhơn Trạch, ngày     tháng 8 năm 2026")
+                r.font.name, r.font.size, r.font.italic = 'Times New Roman', Pt(12), True
+            else:
+                p_r1 = cell_right.paragraphs[0]
+                p_r1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_r1.paragraph_format.line_spacing = 1.15
+                p_r1.paragraph_format.space_after = Pt(0)
+                r = p_r1.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM")
+                r.font.name, r.font.size, r.font.bold = 'Times New Roman', Pt(12), True
+
+                p_r2 = cell_right.add_paragraph()
+                p_r2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_r2.paragraph_format.line_spacing = 1.15
+                p_r2.paragraph_format.space_after = Pt(6)
+                r = p_r2.add_run("Độc lập - Tự do - Hạnh phúc")
+                r.font.name, r.font.size, r.font.bold = 'Times New Roman', Pt(12.5), True
+                add_paragraph_bottom_border(p_r2, sz="6", space="5")
+
+                p_r3 = cell_right.add_paragraph()
+                p_r3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_r3.paragraph_format.line_spacing = 1.15
+                p_r3.paragraph_format.space_after = Pt(0)
+                r = p_r3.add_run("Nhơn Trạch, ngày     tháng 8 năm 2026")
+                r.font.name, r.font.size, r.font.italic = 'Times New Roman', Pt(12), True
 
             p_space = doc.add_paragraph()
             p_space.paragraph_format.space_after = Pt(6)
 
             next_is_trich_yeu = False
             for line in lines_data:
-                p = doc.add_paragraph()
-                p.paragraph_format.line_spacing = 1.2
-                p.paragraph_format.space_after = Pt(4)
-                
                 if re.match(r'^(I|II|III|IV|V|VI|VII|VIII)\.', line):
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(4)
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
                     next_is_trich_yeu = False
                 elif line.isupper() and doc_type_str != "Công văn":
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(4)
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(14), True
                     next_is_trich_yeu = True
                 elif next_is_trich_yeu and doc_type_str != "Công văn":
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(2)
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
                     
+                    # Tạo đường kẻ viền mảnh chuẩn 1/3 ngắn bên dưới Trích yếu
                     p_line = doc.add_paragraph()
                     p_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    p_line.paragraph_format.space_after = Pt(6)
-                    r_line = p_line.add_run("------------------")
-                    r_line.font.name, r_line.font.size, r_line.font.bold = 'Times New Roman', Pt(10), True
+                    p_line.paragraph_format.space_before = Pt(2)
+                    p_line.paragraph_format.space_after = Pt(8)
+                    p_line.paragraph_format.left_indent = Cm(5.5)
+                    p_line.paragraph_format.right_indent = Cm(5.5)
+                    add_paragraph_bottom_border(p_line, sz="6", space="1")
                     next_is_trich_yeu = False
                 elif re.match(r'^\d+\.', line) and len(line) < 80:
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(4)
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
                     run.font.name, run.font.size, run.font.bold = 'Times New Roman', Pt(13), True
                     next_is_trich_yeu = False
                 elif line.startswith("Kính gửi:") or line.startswith("-"):
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(4)
                     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     run = p.add_run(line)
                     run.font.name, run.font.size = 'Times New Roman', Pt(12 if line.startswith("-") else 13)
                     next_is_trich_yeu = False
                 else:
+                    p = doc.add_paragraph()
+                    p.paragraph_format.line_spacing = 1.2
+                    p.paragraph_format.space_after = Pt(4)
                     p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                     p.paragraph_format.first_line_indent = Cm(1.27)
                     run = p.add_run(line)
