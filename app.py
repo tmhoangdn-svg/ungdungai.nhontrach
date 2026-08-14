@@ -161,14 +161,14 @@ def check_login():
     return True
 
 # Thiết lập Cấu hình Trang Streamlit
-st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="✨", layout="wide")
+st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="🏛️", layout="wide")
 
 # Bắt buộc Đăng nhập
 if not check_login():
     st.stop()
 
 # ==============================================================================
-# 2. CẤU HÌNH GIAO DIỆN CANVA STYLE (SÁNG SỦA, TƯƠI TRẺ, GRADIENT CAO CẤP)
+# 2. CẤU HÌNH GIAO DIỆN CSS CAO CẤP (HOA VĂN & MÀU SẮC CHUYÊN NGHIỆP)
 # ==============================================================================
 SYMBOL_MAP = {
     "Kế hoạch": "KH",
@@ -179,87 +179,67 @@ SYMBOL_MAP = {
     "Quyết định": "QĐ"
 }
 
-canva_theme_css = """
+custom_theme_css = """
 <style>
-/* Nền tổng thể sáng sủa, thoáng đãng */
-.stApp {
-    background-color: #f8fafc;
-    color: #1e293b;
-}
-
-/* Sidebar sáng phong cách Canva */
-section[data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-right: 1px solid #e2e8f0;
-}
-
-/* Header Banner Gradient Canva (Xanh ngọc - Xanh dương - Tím pastel) */
-.canva-header {
-    background: linear-gradient(135deg, #00c4cc 0%, #4f46e5 50%, #7c3aed 100%);
-    border-radius: 16px;
-    padding: 26px 30px;
-    margin-bottom: 25px;
-    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.35);
+/* 1. Tiêu đề Banner dạng Cổng thông tin Quốc gia */
+.app-header {
+    background: linear-gradient(135deg, #7b0000 0%, #a81010 50%, #c41e1e 100%);
+    border: 1px solid #e0a800;
+    border-radius: 12px;
+    padding: 20px 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
-.canva-header-title {
+.app-header-title {
     color: #ffffff;
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
     margin: 0;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
-.canva-header-sub {
-    color: #e0e7ff;
-    font-size: 13.5px;
-    margin-top: 6px;
+.app-header-sub {
+    color: #ffd700;
+    font-size: 13px;
+    margin-top: 4px;
     font-weight: 500;
 }
 
-/* Huy hiệu phong cách Canva (Gradient rực rỡ) */
-.canva-badge {
-    background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%);
-    color: #ffffff;
+/* 2. Thẻ Khung Nhập Liệu (Card Box) Viền Ánh Kim */
+.custom-card {
+    background-color: #1a1e24;
+    border: 1px solid #2d3748;
+    border-top: 3px solid #d4af37;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+.section-badge {
+    background: linear-gradient(90deg, #d4af37 0%, #f3e5ab 100%);
+    color: #4a2c00;
     font-size: 11px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 20px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
     text-transform: uppercase;
     display: inline-block;
     margin-bottom: 6px;
-    box-shadow: 0 2px 6px rgba(236, 72, 153, 0.3);
 }
 
-/* Nút bấm chính Gradient Canva */
-div.stButton > button:first-child[kind="primary"] {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-weight: 700 !important;
-    font-size: 15px !important;
-    padding: 12px 24px !important;
-    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4) !important;
-    transition: all 0.3s ease !important;
-}
-div.stButton > button:first-child[kind="primary"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(124, 58, 237, 0.5) !important;
-}
-
-/* Tờ giấy A4 xem trước chuyên nghiệp */
+/* 3. Tờ giấy A4 xem trước nổi bật trên nền bàn làm việc */
 .a4-wrapper {
-    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+    background: radial-gradient(circle, #3d434d 0%, #20242b 100%);
     padding: 20px;
-    border-radius: 14px;
-    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    border: 1px solid #4a5568;
     display: flex;
     justify-content: center;
     width: 100%;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
 }
 .a4-paper {
     background-color: #ffffff !important;
@@ -269,11 +249,11 @@ div.stButton > button:first-child[kind="primary"]:hover {
     font-family: 'Times New Roman', Times, serif;
     font-size: 10.5pt;
     line-height: 1.35;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
     max-height: 620px;
     overflow-y: auto;
     box-sizing: border-box;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 .header-table, .footer-table {
     width: 100%;
@@ -334,21 +314,21 @@ div.stButton > button:first-child[kind="primary"]:hover {
     line-height: 1.2;
 }
 
-/* Khung Chat AI Phong cách Tươi sáng */
+/* 4. Khung Chat AI phong cách Hiện đại */
 .chat-user-box {
-    background-color: #f1f5f9;
-    color: #1e293b;
+    background: linear-gradient(90deg, #242933 0%, #1a1e24 100%);
+    color: #ffffff;
     padding: 12px 16px;
-    border-radius: 12px;
+    border-radius: 8px;
     margin-bottom: 8px;
     display: flex;
     align-items: center;
     font-size: 13px;
-    border-left: 4px solid #ef4444;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    border-left: 3px solid #e53e3e;
+    border: 1px solid #323946;
 }
 .chat-user-icon {
-    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%);
     color: white;
     width: 30px;
     height: 30px;
@@ -359,21 +339,22 @@ div.stButton > button:first-child[kind="primary"]:hover {
     margin-right: 12px;
     font-size: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 .chat-ai-box {
-    background-color: #f0fdf4;
-    color: #166534;
+    background: linear-gradient(90deg, #1f2d24 0%, #17241c 100%);
+    color: #ffffff;
     padding: 12px 16px;
-    border-radius: 12px;
+    border-radius: 8px;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
     font-size: 13px;
-    border-left: 4px solid #22c55e;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    border-left: 3px solid #38a169;
+    border: 1px solid #234e32;
 }
 .chat-ai-icon {
-    background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+    background: linear-gradient(135deg, #38a169 0%, #22543d 100%);
     color: white;
     width: 30px;
     height: 30px;
@@ -384,18 +365,19 @@ div.stButton > button:first-child[kind="primary"]:hover {
     margin-right: 12px;
     font-size: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 </style>
 """
-st.markdown(canva_theme_css, unsafe_allow_html=True)
+st.markdown(custom_theme_css, unsafe_allow_html=True)
 
 # --- THÔNG TIN TÀI KHOẢN TRÊN SIDEBAR ---
 with st.sidebar:
     st.markdown("""
-    <div style="text-align: center; padding: 10px 0;">
-        <span style="font-size: 34px;">✨</span>
-        <h3 style="background: linear-gradient(135deg, #4f46e5, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 5px 0 0 0; font-size: 18px; font-weight: 800;">HỆ THỐNG ĐIỀU HÀNH</h3>
-        <p style="color: #64748b; font-size: 12px;">Biên Soạn Văn Bản Chuẩn Thể Thức</p>
+    <div style="text-align: center; padding-bottom: 10px;">
+        <span style="font-size: 32px;">🏛️</span>
+        <h3 style="color: #ffd700; margin: 0; font-size: 18px;">HỆ THỐNG ĐIỀU HÀNH</h3>
+        <p style="color: #a0aec0; font-size: 11px;">Chuẩn Thể Thức Đảng & Nhà Nước</p>
     </div>
     """, unsafe_allow_html=True)
     st.write("---")
@@ -424,22 +406,22 @@ with st.sidebar:
             st.rerun()
 
 # ==============================================================================
-# 3. GIAO DIỆN CHÍNH (CANVA HEADER & CÁC BƯỚC NHẬP LIỆU)
+# 3. GIAO DIỆN CHÍNH (HEADER BANNER & KHUNG NHẬP LIỆU)
 # ==============================================================================
 st.markdown("""
-<div class="canva-header">
+<div class="app-header">
     <div>
-        <div class="canva-header-title">✨ PHẦN MỀM CỤ THỂ HÓA VĂN BẢN HÀNH CHÍNH</div>
-        <div class="canva-header-sub">Biên soạn, cụ thể hóa & chuẩn hóa thể thức văn bản Đảng - Chính quyền tự động bằng AI</div>
+        <div class="app-header-title">🏛️ PHẦN MỀM CỤ THỂ HÓA VĂN BẢN HÀNH CHÍNH</div>
+        <div class="app-header-sub">HỆ THỐNG HỖ TRỢ BIÊN SOẠN & XỬ LÝ VĂN KIỆN ĐẢNG - CHÍNH QUYỀN TỰ ĐỘNG BẰNG AI</div>
     </div>
-    <div style="font-size: 38px;">🎨</div>
+    <div style="font-size: 38px;">🇻🇳</div>
 </div>
 """, unsafe_allow_html=True)
 
 # MỤC 1 & 2
 col1, col2 = st.columns([1, 1])
 with col1:
-    st.markdown('<span class="canva-badge">BƯỚC 1</span> <b style="font-size: 15px;">File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
+    st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Tải file nguồn/Đề cương (.docx, .pdf, .png, .jpg...):",
         type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
@@ -448,13 +430,13 @@ with col1:
     loai_vb = st.selectbox("Chọn Loại văn bản đầu ra:", ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định"])
 
 with col2:
-    st.markdown('<span class="canva-badge">BƯỚC 2</span> <b style="font-size: 15px;">Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
-    yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Nhập yêu cầu cụ thể hóa hoặc các lưu ý chỉ đạo...")
+    st.markdown('<span class="section-badge">BƯỚC 2</span> <b>Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
+    yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...")
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value="ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH")
 
 # MỤC 3
 st.markdown('<br>', unsafe_allow_html=True)
-st.markdown('<span class="canva-badge">BƯỚC 3</span> <b style="font-size: 15px;">File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
+st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
     custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["docx"], key="custom_template")
@@ -466,7 +448,7 @@ with col3_2:
         "Đề cương Báo cáo kết quả thực hiện nhiệm vụ chính trị"
     ])
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("---")
 btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True)
 
 if "draft_text" not in st.session_state:
@@ -576,7 +558,6 @@ if btn_process:
 # 4. GIAO DIỆN HIỂN THỊ DỰ THẢO A4 & CHAT AI SỬA ĐỔI
 # ==============================================================================
 if st.session_state.draft_text:
-    st.markdown("<br>", unsafe_allow_html=True)
     res_col1, res_col2 = st.columns([1.2, 0.8])
     
     with res_col1:
