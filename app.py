@@ -161,14 +161,14 @@ def check_login():
     return True
 
 # Thiết lập Cấu hình Trang Streamlit
-st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="🏛️", layout="wide")
 
 # Bắt buộc Đăng nhập
 if not check_login():
     st.stop()
 
 # ==============================================================================
-# 2. CẤU HÌNH GIAO DIỆN & BẢNG ÁNH XẠ
+# 2. CẤU HÌNH GIAO DIỆN CSS CAO CẤP (HOA VĂN & MÀU SẮC CHUYÊN NGHIỆP)
 # ==============================================================================
 SYMBOL_MAP = {
     "Kế hoạch": "KH",
@@ -179,28 +179,81 @@ SYMBOL_MAP = {
     "Quyết định": "QĐ"
 }
 
-a4_css = """
+custom_theme_css = """
 <style>
-.a4-wrapper {
-    background-color: #525659;
+/* 1. Tiêu đề Banner dạng Cổng thông tin Quốc gia */
+.app-header {
+    background: linear-gradient(135deg, #7b0000 0%, #a81010 50%, #c41e1e 100%);
+    border: 1px solid #e0a800;
+    border-radius: 12px;
+    padding: 20px 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.app-header-title {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    margin: 0;
+}
+.app-header-sub {
+    color: #ffd700;
+    font-size: 13px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* 2. Thẻ Khung Nhập Liệu (Card Box) Viền Ánh Kim */
+.custom-card {
+    background-color: #1a1e24;
+    border: 1px solid #2d3748;
+    border-top: 3px solid #d4af37;
+    border-radius: 10px;
     padding: 15px;
-    border-radius: 6px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+.section-badge {
+    background: linear-gradient(90deg, #d4af37 0%, #f3e5ab 100%);
+    color: #4a2c00;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+/* 3. Tờ giấy A4 xem trước nổi bật trên nền bàn làm việc */
+.a4-wrapper {
+    background: radial-gradient(circle, #3d434d 0%, #20242b 100%);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #4a5568;
     display: flex;
     justify-content: center;
     width: 100%;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
 }
 .a4-paper {
     background-color: #ffffff !important;
     color: #000000 !important;
     width: 100%;
-    padding: 25px 30px;
+    padding: 30px 35px;
     font-family: 'Times New Roman', Times, serif;
     font-size: 10.5pt;
     line-height: 1.35;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.4);
-    max-height: 600px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    max-height: 620px;
     overflow-y: auto;
     box-sizing: border-box;
+    border-radius: 2px;
 }
 .header-table, .footer-table {
     width: 100%;
@@ -254,8 +307,6 @@ a4_css = """
     margin-top: 10px;
     margin-bottom: 3px;
 }
-
-/* Thụt lề khối Nơi nhận vào 1cm */
 .noi-nhan-block {
     padding-left: 1cm !important;
     text-align: left;
@@ -263,9 +314,9 @@ a4_css = """
     line-height: 1.2;
 }
 
-/* Khung Chat AI dạng Box xám đen chuẩn giao diện cũ */
+/* 4. Khung Chat AI phong cách Hiện đại */
 .chat-user-box {
-    background-color: #212529;
+    background: linear-gradient(90deg, #242933 0%, #1a1e24 100%);
     color: #ffffff;
     padding: 12px 16px;
     border-radius: 8px;
@@ -273,23 +324,25 @@ a4_css = """
     display: flex;
     align-items: center;
     font-size: 13px;
-    border: 1px solid #343a40;
+    border-left: 3px solid #e53e3e;
+    border: 1px solid #323946;
 }
 .chat-user-icon {
-    background-color: #dc3545;
+    background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%);
     color: white;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 12px;
     font-size: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 .chat-ai-box {
-    background-color: #212529;
+    background: linear-gradient(90deg, #1f2d24 0%, #17241c 100%);
     color: #ffffff;
     padding: 12px 16px;
     border-radius: 8px;
@@ -297,28 +350,38 @@ a4_css = """
     display: flex;
     align-items: center;
     font-size: 13px;
-    border: 1px solid #343a40;
+    border-left: 3px solid #38a169;
+    border: 1px solid #234e32;
 }
 .chat-ai-icon {
-    background-color: #fd7e14;
+    background: linear-gradient(135deg, #38a169 0%, #22543d 100%);
     color: white;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 12px;
     font-size: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 </style>
 """
-st.markdown(a4_css, unsafe_allow_html=True)
+st.markdown(custom_theme_css, unsafe_allow_html=True)
 
 # --- THÔNG TIN TÀI KHOẢN TRÊN SIDEBAR ---
 with st.sidebar:
-    st.title("⚙️ Cấu hình Thể thức & AI")
+    st.markdown("""
+    <div style="text-align: center; padding-bottom: 10px;">
+        <span style="font-size: 32px;">🏛️</span>
+        <h3 style="color: #ffd700; margin: 0; font-size: 18px;">HỆ THỐNG ĐIỀU HÀNH</h3>
+        <p style="color: #a0aec0; font-size: 11px;">Chuẩn Thể Thức Đảng & Nhà Nước</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("---")
+    
     the_thuc = st.radio("Chọn Khối văn bản:", ["Khối Đảng", "Khối Nhà nước"])
     if the_thuc == "Khối Đảng":
         st.info("📌 **Áp dụng:** Hướng dẫn 05-HD/VPTW của Văn phòng Trung ương Đảng")
@@ -343,14 +406,22 @@ with st.sidebar:
             st.rerun()
 
 # ==============================================================================
-# 3. GIAO DIỆN CHÍNH & XỬ LÝ SOẠN THẢO VĂN BẢN
+# 3. GIAO DIỆN CHÍNH (HEADER BANNER & KHUNG NHẬP LIỆU)
 # ==============================================================================
-st.title("📝 Phần mềm Cụ thể hóa Văn bản Hành chính")
+st.markdown("""
+<div class="app-header">
+    <div>
+        <div class="app-header-title">🏛️ PHẦN MỀM CỤ THỂ HÓA VĂN BẢN HÀNH CHÍNH</div>
+        <div class="app-header-sub">HỆ THỐNG HỖ TRỢ BIÊN SOẠN & XỬ LÝ VĂN KIỆN ĐẢNG - CHÍNH QUYỀN TỰ ĐỘNG BẰNG AI</div>
+    </div>
+    <div style="font-size: 38px;">🇻🇳</div>
+</div>
+""", unsafe_allow_html=True)
 
 # MỤC 1 & 2
 col1, col2 = st.columns([1, 1])
 with col1:
-    st.subheader("1. File nguồn & Loại văn bản")
+    st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Tải file nguồn/Đề cương (.docx, .pdf, .png, .jpg...):",
         type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
@@ -359,12 +430,13 @@ with col1:
     loai_vb = st.selectbox("Chọn Loại văn bản đầu ra:", ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định"])
 
 with col2:
-    st.subheader("2. Yêu cầu & Cơ quan ban hành")
+    st.markdown('<span class="section-badge">BƯỚC 2</span> <b>Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
     yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...")
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value="ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH")
 
 # MỤC 3
-st.subheader("3. File mẫu riêng & Mẫu gợi ý")
+st.markdown('<br>', unsafe_allow_html=True)
+st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
     custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["docx"], key="custom_template")
@@ -480,14 +552,16 @@ if btn_process:
                 st.session_state.chat_history = []
                 st.success("Đã cụ thể hóa văn bản thành công!")
             except Exception as e:
-                st.error(f"Lỗi xử lý API Gemini: {str(e)}")
+                st.error(f"Lỗi xử lý API: {str(e)}")
 
-# --- GIAO DIỆN HIỂN THỊ DỰ THẢO A4 & CHAT AI SỬA ĐỔI ---
+# ==============================================================================
+# 4. GIAO DIỆN HIỂN THỊ DỰ THẢO A4 & CHAT AI SỬA ĐỔI
+# ==============================================================================
 if st.session_state.draft_text:
     res_col1, res_col2 = st.columns([1.2, 0.8])
     
     with res_col1:
-        st.subheader("📄 Bản dự thảo trang Word (A4)")
+        st.markdown('##### 📄 BẢN DỰ THẢO VĂN BẢN (A4)')
         
         clean_text = re.sub(r'[\*#_]', '', st.session_state.draft_text)
         raw_lines = [l.strip() for l in clean_text.split('\n') if l.strip()]
@@ -571,7 +645,6 @@ if st.session_state.draft_text:
                 body_content += f'<div class="content-para">{line}</div>'
                 is_trich_yeu = False
 
-        # ĐÃ THỤT LỀ CẢ KHỐI NƠI NHẬN VÀO 1CM THEO YÊU CẦU 1
         noi_nhan_html = "<br>".join(noi_nhan_list)
         chuc_vu_html = chuc_vu_signer.replace("\n", "<br>")
         footer_table = f"""
@@ -593,7 +666,6 @@ if st.session_state.draft_text:
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # HÀM XUẤT FILE WORD (.DOCX) ĐÃ ĐƯỢC CẤU HÌNH THỤT LỀ NƠI NHẬN 1CM
         def generate_docx(b_lines, agency_name, form_type, doc_type_str, cv_subj, n_nhan, c_vu, t_ky):
             doc = docx.Document()
             for section in doc.sections:
@@ -706,7 +778,6 @@ if st.session_state.draft_text:
                     run.font.name, run.font.size = 'Times New Roman', Pt(13)
                     next_is_trich_yeu = False
 
-            # CẤU HÌNH THỤT LỀ NƠI NHẬN 1CM TRONG FILE WORD
             doc.add_paragraph().paragraph_format.space_after = Pt(6)
             t_foot = doc.add_table(rows=1, cols=2)
             t_foot.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -718,7 +789,7 @@ if st.session_state.draft_text:
             p_f_l = c_f_left.paragraphs[0]
             p_f_l.alignment = WD_ALIGN_PARAGRAPH.LEFT
             p_f_l.paragraph_format.line_spacing = 1.15
-            p_f_l.paragraph_format.left_indent = Cm(1)  # Thụt lề 1cm
+            p_f_l.paragraph_format.left_indent = Cm(1)
             
             r_nn_title = p_f_l.add_run("Nơi nhận:\n")
             r_nn_title.font.name, r_nn_title.font.size, r_nn_title.font.bold, r_nn_title.font.underline, r_nn_title.font.italic = 'Times New Roman', Pt(11), True, True, True
@@ -750,9 +821,9 @@ if st.session_state.draft_text:
             use_container_width=True
         )
 
-    # --- KHU VỰC CHAT AI SỬA ĐỔI (ĐÃ BẮT LỖI QUOTA GIÚP BÁO THÔNG BÁO ÊM ÁM) ---
+    # --- KHU VỰC CHAT AI SỬA ĐỔI ---
     with res_col2:
-        st.subheader("💬 Chat AI sửa đổi (Google Gemini)")
+        st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (GOOGLE GEMINI)')
         st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
         
         edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=120, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
