@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import docx
 from docx import Document
 from docx.shared import Pt, Cm
@@ -11,12 +12,183 @@ import json
 import io
 import re
 import os
+from datetime import datetime
 
 try:
     import openpyxl
 except ImportError:
     openpyxl = None
 
+# ==============================================================================
+# 1. CẤU HÌNH ĐĂNG NHẬP / ĐĂNG KÝ (KẾT NỐI GOOGLE SHEET)
+# ==============================================================================
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
+
+def check_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "user_info" not in st.session_state:
+        st.session_state.user_info = {}
+    if "reg_missing" not in st.session_state:
+        st.session_state.reg_missing = []
+
+    if not st.session_state.logged_in:
+        _, center_col, _ = st.columns([1, 1.2, 1])
+        with center_col:
+            st.markdown("""
+            <div style="text-align: center; margin-top: 25px; margin-bottom: 20px;">
+                <span style="font-size: 42px;">🔐</span>
+                <h2 style="margin: 8px 0 0 0; font-size: 24px; font-weight: 800; color: #ffd700;">ĐĂNG NHẬP HỆ THỐNG</h2>
+                <p style="color: #a0aec0; font-size: 13px; margin-top: 4px;">Phần mềm Cụ thể hóa Văn bản Hành chính</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            tab_login, tab_register, tab_forgot = st.tabs(["Đăng nhập", "Đăng ký tài khoản", "Quên mật khẩu"])
+
+            with tab_login:
+                with st.form("login_form"):
+                    username = st.text_input("Tên đăng nhập")
+                    password = st.text_input("Mật khẩu", type="password")
+                    btn_login = st.form_submit_button("Đăng nhập", use_container_width=True)
+
+                if btn_login:
+                    if username == "admin" and password == "Adminai":
+                        st.success("Xin chào Admin!")
+                        st.session_state.logged_in = True
+                        st.session_state.user_info = {"username": "admin", "fullname": "Quản trị viên", "email_phone": "N/A"}
+                        st.rerun()
+                    else:
+                        try:
+                            df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                            df.columns = [c.strip() for c in df.columns]
+                            user_match = df[(df['username'].astype(str) == username) & (df['password'].astype(str) == password)]
+                            
+                            if not user_match.empty:
+                                user_data = user_match.iloc[0]
+                                st.success(f"Đăng nhập thành công! Chào mừng {user_data['fullname']}")
+                                st.session_state.logged_in = True
+                                
+                                contact_val = "Chưa cập nhật"
+                                if 'email_phone' in user_data and pd.notna(user_data['email_phone']):
+                                    contact_val = str(user_data['email_phone'])
+                                elif 'Email/SĐT' in user_data and pd.notna(user_data['Email/SĐT']):
+                                    contact_val = str(user_data['Email/SĐT'])
+
+                                st.session_state.user_info = {
+                                    "username": username,
+                                    "fullname": user_data['fullname'],
+                                    "email_phone": contact_val
+                                }
+                                st.rerun()
+                            else:
+                                st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
+                        except Exception as e:
+                            st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
+
+            with tab_register:
+                lbl_user = "Tên đăng nhập mới" + (" :red[*]" if "user" in st.session_state.reg_missing else "")
+                lbl_name = "Họ và tên" + (" :red[*]" if "name" in st.session_state.reg_missing else "")
+                lbl_contact = "Email hoặc Số điện thoại" + (" :red[*]" if "contact" in st.session_state.reg_missing else "")
+                lbl_pass = "Mật khẩu mới" + (" :red[*]" if "pass" in st.session_state.reg_missing else "")
+                lbl_conf = "Xác nhận mật khẩu" + (" :red[*]" if "conf" in st.session_state.reg_missing else "")
+
+                with st.form("register_form"):
+                    new_user = st.text_input(lbl_user, key="reg_user")
+                    new_name = st.text_input(lbl_name, key="reg_name")
+                    new_contact = st.text_input(lbl_contact, key="reg_contact")
+                    new_pass = st.text_input(lbl_pass, type="password", key="reg_pass")
+                    confirm_pass = st.text_input(lbl_conf, type="password", key="reg_conf")
+                    btn_register = st.form_submit_button("Đăng ký", use_container_width=True)
+
+                if btn_register:
+                    missing = []
+                    if not new_user.strip(): missing.append("user")
+                    if not new_name.strip(): missing.append("name")
+                    if not new_contact.strip(): missing.append("contact")
+                    if not new_pass.strip(): missing.append("pass")
+                    if not confirm_pass.strip(): missing.append("conf")
+
+                    st.session_state.reg_missing = missing
+
+                    if missing:
+                        st.warning("Vui lòng điền đầy đủ các thông tin có dấu (*) đỏ!")
+                        st.rerun()
+                    elif new_pass != confirm_pass:
+                        st.error("Mật khẩu xác nhận không khớp!")
+                    else:
+                        st.session_state.reg_missing = []
+                        payload = {
+                            "action": "register",
+                            "username": new_user,
+                            "password": new_pass,
+                            "fullname": new_name,
+                            "email_phone": new_contact,
+                            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        try:
+                            res = requests.post(WEB_APP_URL, json=payload)
+                            if res.status_code == 200:
+                                st.success("Đăng ký thành công! Vui lòng quay lại tab Đăng nhập.")
+                            else:
+                                st.error("Lỗi khi tạo tài khoản.")
+                        except:
+                            st.error("Không thể kết nối máy chủ đăng ký.")
+
+            with tab_forgot:
+                with st.form("forgot_form"):
+                    fg_user = st.text_input("Nhập Tên đăng nhập của bạn", key="fg_u")
+                    fg_contact = st.text_input("Nhập Email hoặc Số điện thoại đã đăng ký", key="fg_c")
+                    fg_new_pass = st.text_input("Mật khẩu mới", type="password", key="fg_p1")
+                    fg_confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password", key="fg_p2")
+                    btn_forgot = st.form_submit_button("Đặt lại mật khẩu", use_container_width=True)
+
+                if btn_forgot:
+                    if not fg_user or not fg_contact or not fg_new_pass:
+                        st.warning("Vui lòng điền đầy đủ thông tin!")
+                    elif fg_new_pass != fg_confirm_pass:
+                        st.error("Mật khẩu xác nhận không khớp!")
+                    else:
+                        try:
+                            df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                            df.columns = [c.strip() for c in df.columns]
+                            col_email = 'email_phone' if 'email_phone' in df.columns else 'Email/SĐT'
+                            match = df[(df['username'].astype(str) == fg_user) & (df[col_email].astype(str) == fg_contact)]
+                            
+                            if not match.empty:
+                                payload = {
+                                    "action": "update_password",
+                                    "username": fg_user,
+                                    "new_password": fg_new_pass
+                                }
+                                res = requests.post(WEB_APP_URL, json=payload)
+                                if res.status_code == 200:
+                                    st.success("Đổi mật khẩu thành công! Vui lòng quay lại tab Đăng nhập.")
+                                else:
+                                    st.error("Lỗi khi cập nhật mật khẩu.")
+                            else:
+                                st.error("Tên đăng nhập và Email/SĐT không khớp!")
+                        except Exception as e:
+                            st.error("Không thể xác minh thông tin.")
+
+        return False
+    return True
+
+# Thiết lập Cấu hình Trang
+st.set_page_config(
+    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Bắt buộc Đăng nhập
+if not check_login():
+    st.stop()
+
+# ==============================================================================
+# 2. CẤU HÌNH GIAO DIỆN & LƯU TRỮ KEY
+# ==============================================================================
 CONFIG_FILE = "config_keys.json"
 
 def load_config():
@@ -38,14 +210,6 @@ def save_config(data):
 
 config_data = load_config()
 
-st.set_page_config(
-    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
-    page_icon="🏛️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# GIAO DIỆN TÔNG ĐỎ ĐÔ - HUY HIỆU VÀNG KIM
 st.markdown("""
 <style>
     .block-container {
@@ -473,7 +637,7 @@ def clean_html_response(res_text):
     res_text = re.sub(r'<think>.*?</think>', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'```[a-zA-Z]*', '', res_text)
     res_text = res_text.replace('```', '')
-    res_text = re.sub(r'<!--.*?-->', '', res_text, flags=re.DOTALL)
+    res_text = re.sub(r'', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'^(Dưới đây là|Đây là|Gửi bạn|Sau đây là).*\n', '', res_text, flags=re.IGNORECASE)
     res_text = res_text.replace('&nbsp;', ' ')
     return res_text.strip()
@@ -538,6 +702,7 @@ def dispatch_ai_call(ai_engine, gemini_key, gemini_mod, openai_key, openai_mod, 
     else:
         return call_ollama_api(ollama_mod, prompt)
 
+# --- THANH SIDEBAR TÔNG ĐÔ - VÀNG TRANG NGHIÊM ---
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -594,6 +759,19 @@ with st.sidebar:
         else:
             st.error("Lỗi khi lưu cấu hình!")
 
+    st.write("---")
+    user_info = st.session_state.get("user_info", {})
+    with st.popover(f"👤 Tài khoản ({user_info.get('fullname', 'User')})"):
+        st.markdown(f"**Họ tên:** {user_info.get('fullname')}")
+        st.markdown(f"**Username:** {user_info.get('username')}")
+        st.markdown(f"**Liên hệ:** {user_info.get('email_phone')}")
+        st.write("---")
+        if st.button("🚪 Đăng xuất", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_info = {}
+            st.rerun()
+
+# --- BANNER CHÍNH SANG TRỌNG ---
 st.markdown("""
 <div class="app-header">
     <div>
@@ -604,6 +782,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# CÁC BƯỚC NHẬP LIỆU CÓ HUY HIỆU VÀNG KIM
 top_col1, top_col2 = st.columns(2)
 
 with top_col1:
@@ -777,71 +956,4 @@ if st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use
             """
             try:
                 res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, prompt)
-                st.session_state.current_draft = clean_html_response(res)
-                st.session_state.chat_messages = []
-            except Exception as e:
-                st.error(f"Lỗi khi xử lý AI: {e}")
-
-if st.session_state.current_draft:
-    st.divider()
-    bottom_col1, bottom_col2 = st.columns([3, 2])
-    
-    with bottom_col1:
-        st.markdown("##### 📄 Bản dự thảo trang Word (A4)")
-        st.markdown(f'<div class="word-page">{st.session_state.current_draft}</div>', unsafe_allow_html=True)
-        
-        docx_bytes = parse_html_to_docx(st.session_state.current_draft)
-        file_download_name = f"Du_thao_{doc_type}_{co_quan_ban_hanh}.docx".replace(" ", "_")
-        st.download_button(
-            label="📥 TẢI VỀ FILE WORD (.DOCX)",
-            data=docx_bytes,
-            file_name=file_download_name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            type="primary",
-            use_container_width=True
-        )
-
-    with bottom_col2:
-        st.markdown(f"##### 💬 Chat AI sửa đổi ({ai_engine})")
-        st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
-
-        chat_container = st.container(height=360)
-        with chat_container:
-            for msg in st.session_state.chat_messages:
-                with st.chat_message(msg["role"]):
-                    st.write(msg["content"])
-
-        if user_edit_req := st.chat_input("Nhập yêu cầu chỉnh sửa văn bản..."):
-            st.session_state.chat_messages.append({"role": "user", "content": user_edit_req})
-            
-            with chat_container:
-                with st.chat_message("user"):
-                    st.write(user_edit_req)
-
-                with st.chat_message("assistant"):
-                    with st.spinner("AI đang cập nhật lại văn bản..."):
-                        edit_prompt = f"""
-                        Bạn là biên tập viên văn bản hành chính.
-                        DƯỚI ĐÂY LÀ MÃ HTML BẢN DỰ THẢO VĂN BẢN HIỆN TẠI:
-                        ---
-                        {st.session_state.current_draft}
-                        ---
-
-                        YÊU CẦU CHỈNH SỬA TỪ NGUỜI DÙNG:
-                        "{user_edit_req}"
-
-                        QUY TẮC CỐ ĐỊNH:
-                        1. Hãy sửa đổi trực tiếp vào MÃ HTML BẢN DỰ THẢO HIỆN TẠI theo đúng yêu cầu trên.
-                        2. Giữ nguyên toàn bộ cấu trúc các thẻ HTML (<table>, <tr>, <td>, <p class="kinh-gui">, <p class="noi-nhan">, <p class="body-p">, <b>, <i>, <u>).
-                        3. Tuyệt đối KHÔNG dùng ký tự Markdown (*, **, #).
-                        4. Tuyệt đối KHÔNG trả lời bằng lời chào/thoại. CHỈ TRẢ VỀ TOÀN BỘ MÃ HTML SAU KHI SỬA.
-                        5. TUYỆT ĐỐI KHÔNG DÙNG &nbsp; TẠO KHOẢNG TRẮNG.
-                        """
-                        try:
-                            updated_res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, edit_prompt)
-                            cleaned_res = clean_html_response(updated_res)
-                            st.session_state.current_draft = cleaned_res
-                            st.session_state.chat_messages.append({"role": "assistant", "content": "✅ Đã cập nhật văn bản lên trang Word!"})
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Lỗi khi sửa văn bản: {e}")
+                st.session_state.current_draft = clean
