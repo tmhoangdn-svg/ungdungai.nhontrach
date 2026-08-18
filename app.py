@@ -26,7 +26,6 @@ def check_login():
         st.session_state.reg_missing = []
 
     if not st.session_state.logged_in:
-        # Gom form đăng nhập vào chính giữa màn hình
         _, center_col, _ = st.columns([1, 1.2, 1])
         with center_col:
             st.markdown("""
@@ -426,7 +425,11 @@ with col1:
 with col2:
     st.markdown('<span class="section-badge">BƯỚC 2</span> <b>Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
     yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...")
-    co_quan = st.text_input("Cơ quan ban hành dự thảo:", value="ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH")
+    co_quan_default = "ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH"
+    
+    if "current_agency" not in st.session_state:
+        st.session_state.current_agency = co_quan_default
+    co_quan = st.text_input("Cơ quan ban hành dự thảo:", value=st.session_state.current_agency)
 
 # MỤC 3
 st.markdown('<br>', unsafe_allow_html=True)
@@ -450,7 +453,7 @@ if "draft_text" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- XỬ LÝ AI TAO DỰ THẢO ---
+# --- XỬ LÝ AI TẠO DỰ THẢO ---
 if btn_process:
     if not api_key:
         st.error("Vui lòng nhập Gemini API Key ở cột bên trái!")
@@ -496,7 +499,7 @@ if btn_process:
 
                 de_cuong_prompt = ""
                 if de_cuong_goy_y != "(Không chọn mẫu gợi ý)":
-                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯỜNG: {de_cuong_goy_y}"
+                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯƠNG: {de_cuong_goy_y}"
 
                 rule_doc_type = ""
                 if loai_vb == "Công văn":
@@ -525,7 +528,7 @@ if btn_process:
                 DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
                 
-                QUY CẮC THỂ THỨC BẮT BUỘC:
+                QUY TẮC THỂ THỨC BẮT BUỘC:
                 {rule_doc_type}
                 - TUYỆT ĐỐI KHÔNG VIẾT Quốc hiệu, Tiêu ngữ, Tên cơ quan ban hành, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện đã tự chèn).
                 - TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
@@ -543,6 +546,7 @@ if btn_process:
                 
                 response = model.generate_content(content_parts)
                 st.session_state.draft_text = response.text
+                st.session_state.current_agency = co_quan
                 st.session_state.chat_history = []
                 st.success("Đã cụ thể hóa văn bản thành công!")
             except Exception as e:
@@ -563,7 +567,9 @@ if st.session_state.draft_text:
         filtered_lines = []
         for l in raw_lines:
             l_up = l.upper()
-            if any(k in l_up for k in ["ĐẢNG BỘ", "ĐẢNG CỘNG SẢN", "CỘNG HÒA XÃ HỘI", "ĐỘC LẬP - TỰ DO", "NHƠN TRẠCH, NGÀY"]) and len(l) < 80:
+            if any(k in l_up for k in ["ĐẢNG BỘ", "ĐẢNG CỘNG SẢN", "CỘNG HÒA XÃ HỘI", "ĐỘC LẬP - TỰ DO"]) and len(l) < 80:
+                continue
+            if re.search(r',\s*NGÀY\s+.*\s+THÁNG\s+.*\s+NĂM', l_up) and len(l) < 80:
                 continue
             if ("UBND" in l_up or "ĐẢNG ỦY" in l_up) and len(l) < 60 and not l_up.startswith("KẾ HOẠCH") and not l_up.startswith("CÔNG VĂN"):
                 continue
@@ -573,7 +579,7 @@ if st.session_state.draft_text:
 
         body_lines = []
         noi_nhan_list = ["- Như trên;", "- Lưu: VP."]
-        chuc_vu_signer = "T/M BAN THƯỜNG VỤ\nBÍ THƯ" if the_thuc == "Khối Đảng" else "TM. ỦY BÂN NHÂN DÂN\nCHỦ TỊCH"
+        chuc_vu_signer = "T/M BAN THƯỜNG VỤ\nBÍ THƯ" if the_thuc == "Khối Đảng" else "TM. ỦY BAN NHÂN DÂN\nCHỦ TỊCH"
         ten_signer = "Họ và Tên"
         
         in_footer = False
@@ -606,15 +612,27 @@ if st.session_state.draft_text:
             if body_lines[0].startswith("V/v") or body_lines[0].startswith("Về việc"):
                 trich_yeu_cv = body_lines.pop(0)
 
+        # Tự động đồng bộ địa danh ngày tháng từ tên cơ quan
+        agency_display = st.session_state.get("current_agency", co_quan)
+        dia_danh = "Nhơn Trạch"
+        if "ĐẠI PHƯỚC" in agency_display.upper():
+            dia_danh = "Đại Phước"
+        elif "NHƠN TRẠCH" in agency_display.upper():
+            dia_danh = "Nhơn Trạch"
+        else:
+            match_dd = re.search(r'(phường|xã|thị trấn|huyện|thành phố)\s+([^\n,]+)', agency_display, re.IGNORECASE)
+            if match_dd:
+                dia_danh = match_dd.group(2).strip().title()
+
         type_code = SYMBOL_MAP.get(loai_vb, "CV")
         so_ky_hieu = f"-{type_code}/ĐU" if the_thuc == "Khối Đảng" else f"/{type_code}-UBND"
 
         if the_thuc == "Khối Đảng":
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
-            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{co_quan.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><span class="custom-underline"><b>ĐẢNG CỘNG SẢN VIỆT NAM</b></span><br><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
+            header_table = f'<table class="header-table"><tr><td style="width: 48%; text-align: center;"><b>ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI</b><br><b>{agency_display.upper()}</b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 52%; text-align: center;"><span class="custom-underline"><b>ĐẢNG CỘNG SẢN VIỆT NAM</b></span><br><br><i>{dia_danh}, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
         else:
             sub_cv = f"<br><br><i>{trich_yeu_cv}</i>" if trich_yeu_cv else ""
-            header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><span class="custom-underline">{co_quan.upper()}</span></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><span class="custom-underline">Độc lập - Tự do - Hạnh phúc</span></b><br><i>Nhơn Trạch, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
+            header_table = f'<table class="header-table"><tr><td style="width: 45%; text-align: center;">UBND THÀNH PHỐ ĐỒNG NAI<br><b><span class="custom-underline">{agency_display.upper()}</span></b><br><span style="font-size: 7pt;">*</span><br>Số: &nbsp;&nbsp;&nbsp;&nbsp;{so_ky_hieu}{sub_cv}</td><td style="width: 55%; text-align: center;"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><span class="custom-underline">Độc lập - Tự do - Hạnh phúc</span></b><br><i>{dia_danh}, ngày &nbsp;&nbsp;&nbsp; tháng 8 năm 2026</i></td></tr></table>'
 
         body_content = ""
         is_trich_yeu = False
@@ -660,7 +678,7 @@ if st.session_state.draft_text:
         st.markdown(full_a4_html, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        def generate_docx(b_lines, agency_name, form_type, doc_type_str, cv_subj, n_nhan, c_vu, t_ky):
+        def generate_docx(b_lines, agency_name, form_type, doc_type_str, cv_subj, n_nhan, c_vu, t_ky, dia_danh_str):
             doc = docx.Document()
             for section in doc.sections:
                 section.top_margin = Cm(2)
@@ -716,14 +734,14 @@ if st.session_state.draft_text:
             if form_type == "Khối Đảng":
                 r1 = p_right.add_run("ĐẢNG CỘNG SẢN VIỆT NAM")
                 r1.font.name, r1.font.size, r1.font.bold, r1.font.underline = 'Times New Roman', Pt(12), True, True
-                r2 = p_right.add_run("\n\nNhơn Trạch, ngày     tháng 8 năm 2026")
+                r2 = p_right.add_run(f"\n\n{dia_danh_str}, ngày     tháng 8 năm 2026")
                 r2.font.name, r2.font.size, r2.font.italic = 'Times New Roman', Pt(12), True
             else:
                 r1 = p_right.add_run("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n")
                 r1.font.name, r1.font.size, r1.font.bold = 'Times New Roman', Pt(12), True
                 r2 = p_right.add_run("Độc lập - Tự do - Hạnh phúc")
                 r2.font.name, r2.font.size, r2.font.bold, r2.font.underline = 'Times New Roman', Pt(12.5), True, True
-                r3 = p_right.add_run("\nNhơn Trạch, ngày     tháng 8 năm 2026")
+                r3 = p_right.add_run(f"\n{dia_danh_str}, ngày     tháng 8 năm 2026")
                 r3.font.name, r3.font.size, r3.font.italic = 'Times New Roman', Pt(12), True
 
             doc.add_paragraph().paragraph_format.space_after = Pt(6)
@@ -808,8 +826,8 @@ if st.session_state.draft_text:
 
         st.download_button(
             label="📥 TẢI VỀ FILE WORD (.DOCX)",
-            data=generate_docx(body_lines, co_quan, the_thuc, loai_vb, trich_yeu_cv, noi_nhan_list, chuc_vu_signer, ten_signer),
-            file_name="Du_Thao_Van_Ban_Hanh_Chinh.docx",
+            data=generate_docx(body_lines, agency_display, the_thuc, loai_vb, trich_yeu_cv, noi_nhan_list, chuc_vu_signer, ten_signer, dia_danh),
+            file_name=f"Du_Thao_{loai_vb}_{dia_danh}.docx".replace(" ", "_"),
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             type="primary",
             use_container_width=True
@@ -828,9 +846,26 @@ if st.session_state.draft_text:
                     try:
                         genai.configure(api_key=api_key)
                         model = genai.GenerativeModel(model_name)
-                        edit_prompt = f"BẢN DỰ THẢO HIỆN TẠI:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA:\n{edit_instruction}\n\nHãy cập nhật toàn bộ bản dự thảo văn bản. TUYỆT ĐỐI KHÔNG DÙNG MARKDOWN (*, #, _)."
+                        edit_prompt = f"""
+                        BẢN DỰ THẢO HIỆN TẠI:
+                        {st.session_state.draft_text}
+
+                        YÊU CẦU CHỈNH SỬA TỪ NGƯỜI DÙNG:
+                        {edit_instruction}
+
+                        HÃY CẬP NHẬT LẠI TOÀN BỘ BẢN DỰ THẢO THEO ĐÚNG YÊU CẦU TRÊN.
+                        TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
+                        """
                         res_edit = model.generate_content(edit_prompt)
                         st.session_state.draft_text = res_edit.text
+                        
+                        # Tự động cập nhật tên cơ quan nếu người dùng yêu cầu đổi địa danh/cơ quan
+                        edit_lower = edit_instruction.lower()
+                        if "đại phước" in edit_lower:
+                            st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
+                        elif "nhơn trạch" in edit_lower:
+                            st.session_state.current_agency = st.session_state.current_agency.replace("ĐẠI PHƯỚC", "NHƠN TRẠCH").replace("Đại Phước", "Nhơn Trạch")
+                        
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
                     except Exception as e:
