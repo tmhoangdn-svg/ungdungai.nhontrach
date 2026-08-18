@@ -45,7 +45,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# GIAO DIỆN MÀU MÈ HOA LÁ HẸ (BANNER ĐỎ ĐÔ - HUY HIỆU VÀNG KIM)
+# GIAO DIỆN TÔNG ĐỎ ĐÔ - HUY HIỆU VÀNG KIM
 st.markdown("""
 <style>
     .block-container {
