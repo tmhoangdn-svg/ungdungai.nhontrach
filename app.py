@@ -19,7 +19,7 @@ try:
 except ImportError:
     openpyxl = None
 
-# 1. CẤU HÌNH TRANG STREAMLIT (BẮT BUỘC ĐẶT ĐẦU TIÊN)
+# 1. CẤU HÌNH TRANG STREAMLIT
 st.set_page_config(
     page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
     page_icon="🏛️",
@@ -723,6 +723,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# BƯỚC 1 & 2: CHIA 2 CỘT CÂN ĐỐI
 top_col1, top_col2 = st.columns(2)
 
 with top_col1:
@@ -749,24 +750,30 @@ with top_col2:
 
     co_quan_ban_hanh = st.text_input("Cơ quan ban hành dự thảo:", value=default_agency)
 
+# BƯỚC 3: CHIA 2 CỘT CÂN ĐỐI VỚI BƯỚC 1 & 2
 st.markdown('<br>', unsafe_allow_html=True)
-st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
-uploaded_sample = st.file_uploader(
-    "Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):",
-    type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
-    key="sample_file"
-)
-sample_text = read_uploaded_file(uploaded_sample)
+col3_1, col3_2 = st.columns(2)
 
-selected_builtin = st.selectbox(
-    f"📌 Mẫu gợi ý / Đề cương chuẩn ({'NĐ 30' if khoi_van_ban == 'Khối Nhà nước' else 'HD 05'}):",
-    ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys())
-)
+with col3_1:
+    st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng (Tùy chọn)</b>', unsafe_allow_html=True)
+    uploaded_sample = st.file_uploader(
+        "Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):",
+        type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
+        key="sample_file"
+    )
+    sample_text = read_uploaded_file(uploaded_sample)
 
-if selected_builtin != "(Không chọn mẫu gợi ý)" and not sample_text:
-    sample_text = builtin_dict[selected_builtin]
-    with st.expander("👁️ Xem trước Đề cương/Mẫu gợi ý đã chọn:"):
-        st.code(sample_text, language="text")
+with col3_2:
+    st.markdown('<span class="section-badge">GỢI Ý</span> <b>Mẫu gợi ý / Đề cương chuẩn</b>', unsafe_allow_html=True)
+    selected_builtin = st.selectbox(
+        f"Mẫu gợi ý ({'NĐ 30' if khoi_van_ban == 'Khối Nhà nước' else 'HD 05'}):",
+        ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys())
+    )
+
+    if selected_builtin != "(Không chọn mẫu gợi ý)" and not sample_text:
+        sample_text = builtin_dict[selected_builtin]
+        with st.expander("👁️ Xem trước Đề cương/Mẫu gợi ý đã chọn:"):
+            st.code(sample_text, language="text")
 
 st.markdown("<br>", unsafe_allow_html=True)
 if st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True):
