@@ -189,10 +189,8 @@ def check_login():
         return False
     return True
 
-# Thiết lập Cấu hình Trang Streamlit
 st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành chính", page_icon="🏛️", layout="wide")
 
-# Bắt buộc Đăng nhập
 if not check_login():
     st.stop()
 
@@ -209,7 +207,6 @@ SYMBOL_MAP = {
     "Hướng dẫn": "HD"
 }
 
-# TẬP HỢP ĐỀ CƯƠNG CHUẨN ĐẢNG & NHÀ NƯỚC
 TEMPLATES_CONFIG = {
     "Khối Đảng": {
         "Kế hoạch": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\nII. NỘI DUNG VÀ NHIỆM VỤ CỤ THỂ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm\n2. Tiến độ và thời gian hoàn thành",
@@ -407,7 +404,6 @@ a4_css = """
 """
 st.markdown(a4_css, unsafe_allow_html=True)
 
-# --- THÔNG TIN TÀI KHOẢN TRÊN SIDEBAR ---
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -453,9 +449,6 @@ with st.sidebar:
             st.session_state.user_info = {}
             st.rerun()
 
-# ==============================================================================
-# 3. GIAO DIỆN CHÍNH
-# ==============================================================================
 st.markdown("""
 <div class="app-header">
     <div>
@@ -466,7 +459,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# MỤC 1 & 2
 col1, col2 = st.columns([1, 1])
 with col1:
     st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
@@ -475,7 +467,6 @@ with col1:
         type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
         accept_multiple_files=True
     )
-    # Bổ sung Hướng dẫn vào danh sách 7 loại văn bản
     loai_vb = st.selectbox(
         "Chọn Loại văn bản đầu ra:", 
         ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định", "Hướng dẫn"]
@@ -489,29 +480,40 @@ with col2:
         st.session_state.current_agency = default_agency
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value=st.session_state.current_agency)
 
-# MỤC 3: TỰ ĐỘNG ĐỔI ĐỀ CƯƠNG THEO LOẠI VĂN BẢN VÀ KHỐI
+# MỤC 3: MỞ RỘNG ĐỊNH DẠNG FILE MẪU (.DOC, .DOCX, .PDF) & ƯU TIÊN SỬ DỤNG
 st.markdown('<br>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
     st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
-    custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["docx"], key="custom_template")
+    custom_template_file = st.file_uploader(
+        "Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):",
+        type=["doc", "docx", "pdf"],
+        key="custom_template"
+    )
 
 with col3_2:
     st.markdown(f'<span style="color: #ffd700; font-size: 13px;">📌</span> <b>Mẫu gợi ý / Đề cương chuẩn ({the_thuc}):</b>', unsafe_allow_html=True)
     
-    # Tự động lấy đề cương chuẩn của loại văn bản đã chọn
     current_default_outline = TEMPLATES_CONFIG[the_thuc].get(loai_vb, "")
     outline_title = f"📌 Đề cương {loai_vb} chuẩn ({'HD 05-HD/VPTW' if the_thuc == 'Khối Đảng' else 'NĐ 30/2020/NĐ-CP'})"
     
     selected_builtin = st.selectbox(
         "Mẫu gợi ý / Đề cương chuẩn:",
-        ["(Không chọn mẫu gợi ý)", outline_title],
+        [outline_title, "(Không chọn mẫu gợi ý)"],
+        index=0,
         label_visibility="collapsed"
     )
 
     if selected_builtin != "(Không chọn mẫu gợi ý)":
-        with st.expander("👁️ Xem trước Đề cương chuẩn:", expanded=True):
-            st.code(current_default_outline, language="text")
+        st.markdown(
+            f"""
+            <div style="background-color: #161c24; border: 1px solid #2b6cb0; border-radius: 6px; padding: 10px 14px; margin-top: 6px;">
+                <span style="color: #63b3ed; font-size: 12px; font-weight: bold;">👁️ Khung đề cương chuẩn sẽ áp dụng:</span>
+                <pre style="color: #68d391; font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.4; margin: 6px 0 0 0; white-space: pre-wrap;">{current_default_outline}</pre>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 st.markdown("---")
 btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True)
@@ -521,7 +523,7 @@ if "draft_text" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- XỬ LÝ AI TẠO DỰ THẢO ---
+# --- XỬ LÝ AI TẠO DỰ THẢO (ƯU TIÊN FILE MẪU RIÊNG) ---
 if btn_process:
     if not api_key:
         st.error("Vui lòng nhập Gemini API Key ở cột bên trái!")
@@ -555,19 +557,41 @@ if btn_process:
                     else:
                         content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
-                custom_template_prompt = ""
+                # Đọc nội dung file mẫu riêng (Hỗ trợ .docx, .pdf, và .doc thô)
+                custom_template_text = ""
                 if custom_template_file is not None:
                     try:
-                        doc_tpl = docx.Document(io.BytesIO(custom_template_file.read()))
-                        tpl_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
-                        if tpl_text:
-                            custom_template_prompt = f"\nBÁM SÁT KHUNG MẪU VĂN BẢN ĐÍNH KÈM (Chỉ học theo thể thức, bố cục mục I, II, III và phong cách trình bày):\n--- MẪU THỂ THỨC KHUNG ---\n{tpl_text}\n--- KẾT THÚC MẪU ---\n"
+                        tpl_bytes = custom_template_file.read()
+                        fname = custom_template_file.name.lower()
+                        if fname.endswith('.docx'):
+                            doc_tpl = docx.Document(io.BytesIO(tpl_bytes))
+                            custom_template_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
+                        elif fname.endswith('.pdf'):
+                            reader_tpl = pypdf.PdfReader(io.BytesIO(tpl_bytes))
+                            custom_template_text = "".join([page.extract_text() or "" for page in reader_tpl.pages])
+                        elif fname.endswith('.doc'):
+                            raw_doc = tpl_bytes.decode("latin-1", errors="ignore")
+                            custom_template_text = "".join([c for c in raw_doc if c.isprintable() or c in ["\n", "\r", "\t"]])
                     except Exception as tpl_err:
                         st.warning(f"Lỗi đọc file mẫu: {str(tpl_err)}")
 
-                de_cuong_prompt = ""
-                if selected_builtin != "(Không chọn mẫu gợi ý)":
-                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯƠNG CHUẨN BẮT BUỘC SAU:\n{current_default_outline}\n"
+                # LOGIC ƯU TIÊN: File mẫu riêng -> Đề cương chuẩn gợi ý
+                outline_prompt = ""
+                if custom_template_text.strip():
+                    outline_prompt = f"""
+                    BẮT BUỘC TUÂN THỦ TUYỆT ĐỐI KHUNG MẪU VĂN BẢN RIÊNG DO NGƯỜI DÙNG TẢI LÊN:
+                    Hãy học theo đúng thể thức, bố cục, tên các mục (I, II, III...) và phong cách trình bày từ mẫu này:
+                    --- MẪU THỂ THỨC KHUNG RIÊNG ---
+                    {custom_template_text}
+                    --- KẾT THÚC MẪU ---
+                    """
+                elif selected_builtin != "(Không chọn mẫu gợi ý)":
+                    outline_prompt = f"""
+                    ÁP DỤNG ĐỀ CƯƠNG CHUẨN SAU ĐÂY ĐỂ SOẠN THẢO:
+                    {current_default_outline}
+                    """
+                else:
+                    outline_prompt = "Áp dụng cấu trúc chuẩn hành chính theo quy định hiện hành."
 
                 rule_doc_type = ""
                 if loai_vb == "Công văn":
@@ -590,8 +614,8 @@ if btn_process:
                 
                 THỂ THỨC: {the_thuc} | CƠ QUAN BAN HÀNH: {co_quan} | LOẠI VĂN BẢN: {loai_vb}
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
-                {de_cuong_prompt}
-                {custom_template_prompt}
+                
+                {outline_prompt}
                 
                 DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
@@ -680,7 +704,6 @@ if st.session_state.draft_text:
             if body_lines[0].startswith("V/v") or body_lines[0].startswith("Về việc"):
                 trich_yeu_cv = body_lines.pop(0)
 
-        # Tự động đồng bộ địa danh ngày tháng từ tên cơ quan
         agency_display = st.session_state.get("current_agency", co_quan)
         dia_danh = "Nhơn Trạch"
         if "ĐẠI PHƯỚC" in agency_display.upper():
@@ -901,7 +924,6 @@ if st.session_state.draft_text:
             use_container_width=True
         )
 
-    # --- KHU VỰC CHAT AI SỬA ĐỔI ---
     with res_col2:
         st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (GOOGLE GEMINI)')
         st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
@@ -927,7 +949,6 @@ if st.session_state.draft_text:
                         res_edit = model.generate_content(edit_prompt)
                         st.session_state.draft_text = res_edit.text
                         
-                        # Tự động cập nhật tên cơ quan nếu người dùng yêu cầu đổi địa danh/cơ quan
                         edit_lower = edit_instruction.lower()
                         if "đại phước" in edit_lower:
                             st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
