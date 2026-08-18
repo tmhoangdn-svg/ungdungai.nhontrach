@@ -11,6 +11,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import json, io, re, os
 
+# ==============================================================================
+# CẤU HÌNH & KHỞI TẠO
+# ==============================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
 CONFIG_FILE = "config_keys.json"
@@ -18,29 +21,22 @@ CONFIG_FILE = "config_keys.json"
 def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f: return json.load(f)
+        except Exception: return {}
     return {}
 
 def save_config(data):
     try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=2)
         return True
-    except Exception:
-        return False
+    except Exception: return False
 
 config_data = load_config()
 
 def check_login():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-    if "user_info" not in st.session_state:
-        st.session_state.user_info = {}
-    if "reg_missing" not in st.session_state:
-        st.session_state.reg_missing = []
+    if "logged_in" not in st.session_state: st.session_state.logged_in = False
+    if "user_info" not in st.session_state: st.session_state.user_info = {}
+    if "reg_missing" not in st.session_state: st.session_state.reg_missing = []
 
     if not st.session_state.logged_in:
         _, center_col, _ = st.columns([1, 1.2, 1])
@@ -85,24 +81,26 @@ st.set_page_config(page_title="Phần mềm Cụ thể hóa Văn bản Hành ch�
 if not check_login(): st.stop()
 
 SYMBOL_MAP = {"Kế hoạch": "KH", "Công văn": "CV", "Báo cáo": "BC", "Tờ trình": "TTr", "Thông báo": "TB", "Quyết định": "QĐ", "Hướng dẫn": "HD"}
+
+# ĐỀ CƯƠNG CHUẨN ĐÚNG THEO THỂ THỨC HƯỚNG DẪN 05 VÀ NGHỊ ĐỊNH 30
 TEMPLATES_CONFIG = {
     "Khối Đảng": {
-        "Kế hoạch": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\nII. NỘI DUNG VÀ NHIỆM VỤ CỤ THỂ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm\n2. Tiến độ và thời gian hoàn thành",
-        "Công văn": "Kính gửi: Các chi, đảng bộ cơ sở trực thuộc.\n1. Căn cứ ban hành và mục đích triển khai...\n2. Nội dung cụ thể hóa chỉ đạo của cấp trên...\n3. Tổ chức thực hiện và chế độ báo cáo kết quả...",
-        "Báo cáo": "BÁO CÁO Tình hình...\nI. KẾT QUẢ ĐẠT ĐƯỢC\n1. Công tác lãnh đạo, chỉ đạo, quán triệt\n2. Kết quả thực hiện các nhiệm vụ chính trị\nII. HẠN CHẾ, KHUYẾT ĐIỂM VÀ NGUYÊN NHÂN\n1. Hạn chế, tồn tại\n2. Nguyên nhân (chủ quan, khách quan)\nIII. PHƯƠNG HƯỚNG, NHIỆM VỤ TRỌNG TÂM THỜI GIAN TỚI",
-        "Tờ trình": "TỜ TRÌNH Về việc...\nKính gửi: Ban Thường vụ Đảng ủy cấp trên / Cơ quan có thẩm quyền.\nI. SỰ CẦN THIẾT VÀ CĂN CỨ TRÌNH\nII. NỘI DUNG CHÍNH CỦA TỜ TRÌNH\nIII. ĐỀ XUẤT, KIẾN NGHỊ",
-        "Thông báo": "THÔNG BÁO Kết luận của...\n1. Đánh giá tình hình thực hiện nhiệm vụ vừa qua\n2. Ý kiến kết luận và phân công nhiệm vụ cụ thể thời gian tới\n3. Trách nhiệm tổ chức thực hiện của các cơ quan, đơn vị",
-        "Quyết định": "QUYẾT ĐỊNH Về việc...\n- Căn cứ Điều lệ Đảng và Quy chế làm việc...\nBAN THƯỜNG VỤ QUYẾT ĐỊNH:\nĐiều 1. (Nội dung quyết định cụ thể hóa)\nĐiều 2. (Trách nhiệm của các tổ chức, cá nhân)\nĐiều 3. Quyết định này có hiệu lực kể từ ngày ký...",
-        "Hướng dẫn": "HƯỚNG DẪN Về việc...\n- Căn cứ văn bản chỉ đạo của cấp trên...\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG HƯỚNG DẪN CỤ THỂ\n1. Nhiệm vụ chuyên môn\n2. Quy trình, hồ sơ thực hiện\nIV. TỔ CHỨC THỰC HIỆN VÀ BÁO CÁO"
+        "Kế hoạch": "KẾ HOẠCH\nVề việc triển khai thực hiện...\n\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\n\nII. NỘI DUNG VÀ NHIỆM VỤ TRỌNG TÂM\n1. Công tác quán triệt, tuyên truyền\n2. Các nhiệm vụ và giải pháp cụ thể\n\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm cho các cơ quan, đơn vị\n2. Chế độ thông tin, báo cáo",
+        "Công văn": "Kính gửi: Các cơ quan, đơn vị trực thuộc.\n\n1. Căn cứ văn bản chỉ đạo của cấp trên về nhiệm vụ...\n2. Đề nghị các cơ quan, đơn vị tập trung triển khai thực hiện các nội dung trọng tâm sau đây...\n3. Giao bộ phận chuyên môn theo dõi, đôn đốc và tổng hợp báo cáo kết quả thực hiện định kỳ.",
+        "Báo cáo": "BÁO CÁO\nKết quả thực hiện nhiệm vụ...\n\nI. TÌNH HÌNH VÀ KẾT QUẢ TRIỂN KHAI\n1. Công tác lãnh đạo, chỉ đạo và quán triệt\n2. Kết quả thực hiện các chỉ tiêu, nhiệm vụ trọng tâm\n\nII. ĐÁNH GIÁ CHUNG\n1. Ưu điểm, kết quả đạt được\n2. Tồn tại, hạn chế và nguyên nhân\n\nIII. NHIỆM VỤ VÀ GIẢI PHÁP TRỌNG TÂM THỜI GIAN TỚI",
+        "Tờ trình": "TỜ TRÌNH\nVề việc...\n\nKính gửi: Ban Thường vụ Đảng ủy.\n\nI. SỰ CẦN THIẾT VÀ CĂN CỨ TRÌNH\nII. NỘI DUNG CHÍNH CỦA ĐỀ ÁN / KẾ HOẠCH\nIII. ĐỀ XUẤT, KIẾN NGHỊ",
+        "Thông báo": "THÔNG BÁO\nKết luận của Thường trực Đảng ủy tại cuộc họp...\n\n1. Đánh giá khái quát tình hình triển khai công tác vừa qua\n2. Ý kiến chỉ đạo kết luận cụ thể đối với từng nhiệm vụ\n3. Giao trách nhiệm cho các ban đảng, cơ quan đơn vị triển khai thực hiện",
+        "Quyết định": "QUYẾT ĐỊNH\nVề việc...\n\n- Căn cứ Điều lệ Đảng và Quy chế làm việc...\nBAN THƯỜNG VỤ QUYẾT ĐỊNH:\nĐiều 1. Phân công, giao nhiệm vụ cụ thể cho các tập thể, cá nhân.\nĐiều 2. Trách nhiệm thi hành của các cơ quan, đơn vị liên quan.\nĐiều 3. Quyết định có hiệu lực kể từ ngày ký.",
+        "Hướng dẫn": "HƯỚNG DẪN\nVề việc thực hiện...\n\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG VÀ QUY TRÌNH THỰC HIỆN\nIV. TỔ CHỨC THỰC HIỆN"
     },
     "Khối Nhà nước": {
-        "Kế hoạch": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\nII. NỘI DUNG VÀ CHỈ TIÊU NHIỆM VỤ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN VÀ KINH PHÍ",
-        "Công văn": "Kính gửi: Các phòng, ban, đơn vị trực thuộc.\n1. Căn cứ văn bản chỉ đạo cấp trên...\n2. Nội dung giao nhiệm vụ và yêu cầu thực hiện...\n3. Thời hạn hoàn thành và báo cáo...",
-        "Báo cáo": "BÁO CÁO Kết quả thực hiện...\nI. TÌNH HÌNH VÀ KẾT QUẢ ĐẠT ĐƯỢC\nII. ĐÁNH GIÁ CHUNG (Ưu điểm, Hạn chế, Nguyên nhân)\nIII. NHIỆM VỤ GIẢI PHÁP VÀ ĐỀ XUẤT, KIẾN NGHỊ",
-        "Tờ trình": "TỜ TRÌNH Về việc...\nKính gửi: Ủy ban nhân dân cấp trên / Cơ quan có thẩm quyền.\nI. CĂN CỨ PHÁP LÝ VÀ SỰ CẦN THIẾT\nII. NỘI DUNG ĐỀ XUẤT, PHÊ DUYỆT\nIII. DỰ THẢO VĂN BẢN KÈM THEO",
-        "Thông báo": "THÔNG BÁO Về việc...\n1. Nội dung thông báo / Ý kiến kết luận chỉ đạo của UBND\n2. Giao nhiệm vụ cho các phòng ban, đơn vị phối hợp triển khai",
-        "Quyết định": "QUYẾT ĐỊNH Về việc...\n- Căn cứ Luật Tổ chức chính quyền địa phương...\nỦY BAN NHÂN DÂN QUYẾT ĐỊNH:\nĐiều 1. (Nội dung quyết định cụ thể hóa)\nĐiều 2. (Trách nhiệm của các cơ quan liên quan)\nĐiều 3. Quyết định có hiệu lực kể từ ngày ký...",
-        "Hướng dẫn": "HƯỚNG DẪN Thực hiện...\n- Căn cứ quy định pháp luật và văn bản cấp trên...\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG VÀ TRÌNH TỰ THỰC HIỆN\nIV. TỔ CHỨC THỰC HIỆN"
+        "Kế hoạch": "KẾ HOẠCH\nVề việc thực hiện...\n\nI. MỤC ĐÍCH, YÊU CẦU\nII. NHIỆM VỤ VÀ GIẢI PHÁP TRỌNG TÂM\nIII. KINH PHÍ VÀ TỔ CHỨC THỰC HIỆN",
+        "Công văn": "Kính gửi: Các phòng, ban, đơn vị trực thuộc.\n\n1. Căn cứ các quy định pháp luật và chỉ đạo của cấp trên...\n2. Triển khai thực hiện các nhiệm vụ chuyên môn theo thẩm quyền...\n3. Yêu cầu các đơn vị nghiêm túc triển khai và báo cáo kết quả.",
+        "Báo cáo": "BÁO CÁO\nTình hình thực hiện công tác...\n\nI. KẾT QUẢ THỰC HIỆN CÁC NHIỆM VỤ TRỌNG TÂM\nII. ĐÁNH GIÁ TỒN TẠI, HẠN CHẾ VÀ NGUYÊN NHÂN\nIII. PHƯƠNG HƯỚNG, NHIỆM VỤ TRONG THỜI GIAN TỚI",
+        "Tờ trình": "TỜ TRÌNH\nVề việc phê duyệt...\n\nKính gửi: Ủy ban nhân dân.\n\nI. CĂN CỨ PHÁP LÝ VÀ SỰ CẦN THIẾT\nII. NỘI DUNG ĐỀ XUẤT\nIII. KIẾN NGHỊ VÀ PHƯƠNG ÁN GIẢI QUYẾT",
+        "Thông báo": "THÔNG BÁO\nVề ý kiến kết luận của Lãnh đạo UBND tại cuộc họp...\n\n1. Nội dung đánh giá tình hình công tác\n2. Các ý kiến chỉ đạo, giao nhiệm vụ cụ thể cho các phòng ban\n3. Tiến độ hoàn thành và chế độ báo cáo",
+        "Quyết định": "QUYẾT ĐỊNH\nVề việc...\n\n- Căn cứ Luật Tổ chức chính quyền địa phương...\nỦY BAN NHÂN DÂN QUYẾT ĐỊNH:\nĐiều 1. Quy định nội dung chi tiết.\nĐiều 2. Trách nhiệm tổ chức thực hiện.\nĐiều 3. Hiệu lực thi hành.",
+        "Hướng dẫn": "HƯỚNG DẪN\nQuy trình thực hiện nhiệm vụ...\n\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG VÀ QUY TRÌNH THỰC HIỆN\nIV. TỔ CHỨC THỰC HIỆN"
     }
 }
 
@@ -120,7 +118,7 @@ def format_outline_to_html(text):
             formatted += f"<div style='margin-left: 25px; font-style: italic; font-size: 0.95em;'>{l}</div>"
     return formatted
 
-a4_css = """
+st.markdown("""
 <style>
 .app-header { background: linear-gradient(135deg, #7b0000 0%, #a81010 50%, #c41e1e 100%); border: 1px solid #e0a800; border-radius: 12px; padding: 20px 25px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); display: flex; align-items: center; justify-content: space-between; }
 .app-header-title { color: #ffffff; font-size: 24px; font-weight: bold; letter-spacing: 0.5px; text-shadow: 1px 1px 3px rgba(0,0,0,0.6); margin: 0; }
@@ -142,8 +140,7 @@ a4_css = """
 .chat-ai-box { background: linear-gradient(90deg, #1f2d24 0%, #17241c 100%); color: #ffffff; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; font-size: 13px; border-left: 3px solid #38a169; border: 1px solid #234e32; }
 .chat-ai-icon { background: linear-gradient(135deg, #38a169 0%, #22543d 100%); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 14px; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 </style>
-"""
-st.markdown(a4_css, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("""
@@ -233,44 +230,66 @@ if btn_process:
                         extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + "\n".join([p.text for p in doc_file.paragraphs]))
                     else: content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
-                custom_template_text = ""
+                # Trích xuất Cấu trúc/Khung sườn của file mẫu riêng (Chỉ lấy tiêu đề mục, không lấy nội dung thô)
+                custom_template_structure = ""
                 if custom_template_file is not None:
                     try:
                         tpl_bytes = custom_template_file.read()
                         fname = custom_template_file.name.lower()
+                        raw_tpl_text = ""
                         if fname.endswith('.docx'):
                             doc_tpl = docx.Document(io.BytesIO(tpl_bytes))
-                            custom_template_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
+                            raw_tpl_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
                         elif fname.endswith('.pdf'):
                             reader_tpl = pypdf.PdfReader(io.BytesIO(tpl_bytes))
-                            custom_template_text = "".join([page.extract_text() or "" for page in reader_tpl.pages])
+                            raw_tpl_text = "".join([page.extract_text() or "" for page in reader_tpl.pages])
                         elif fname.endswith('.doc'):
-                            raw_doc = tpl_bytes.decode("latin-1", errors="ignore")
-                            custom_template_text = "".join([c for c in raw_doc if c.isprintable() or c in ["\n", "\r", "\t"]])
+                            raw_tpl_text = tpl_bytes.decode("latin-1", errors="ignore")
+                        
+                        # Chỉ lọc ra các dòng tiêu đề cấu trúc (I, II, III, Điều, 1, 2...) làm khung sườn
+                        struct_lines = []
+                        for line in raw_tpl_text.split('\n'):
+                            l_str = line.strip()
+                            if re.match(r'^(I|II|III|IV|V|VI|VII|VIII|Điều|\d+\.)', l_str):
+                                struct_lines.append(l_str)
+                        if struct_lines:
+                            custom_template_structure = "\n".join(struct_lines)
                     except Exception as tpl_err:
                         st.warning(f"Lỗi đọc file mẫu: {str(tpl_err)}")
 
+                # LOGIC CHỌN KHUNG SƯỞN (ƯU TIÊN CẤU TRÚC FILE MẪU RIÊNG -> ĐỀ CƯƠNG CHUẨN)
                 outline_prompt = ""
-                if custom_template_text.strip():
-                    outline_prompt = f"BẮT BUỘC TUÂN THỦ KHUNG MẪU VĂN BẢN RIÊNG SAU:\n{custom_template_text}\n"
+                if custom_template_structure.strip():
+                    outline_prompt = f"""
+                    BẮT BUỘC TUÂN THỦ KHUNG SƯỞN CẤU TRÚC (CÁC MỤC I, II, III...) CỦA FILE MẪU RIÊNG SAU ĐÂY:
+                    {custom_template_structure}
+                    LƯU Ý QUAN TRỌNG: Chỉ lấy khung sườn cấu trúc trên để tổ chức bố cục văn bản, CÒN NỘI DUNG BÊN TRONG PHẢI TỰ VIẾT MỚI hoàn toàn dựa trên tài liệu nguồn của cấp trên và yêu cầu thực tế, TUYỆT ĐỐI KHÔNG COPY NỘI DUNG CŨ CỦA FILE MẪU VÀO DỰ THẢO.
+                    """
                 elif selected_builtin != "(Không chọn mẫu gợi ý)":
-                    outline_prompt = f"ÁP DỤNG ĐỀ CƯƠNG CHUẨN SAU:\n{current_default_outline}\n"
+                    outline_prompt = f"""
+                    BẮT BUỘC ÁP DỤNG ĐỀ CƯƠNG CHUẨN THEO ĐÚNG THỂ THỨC (HD 05 / NĐ 30):
+                    {current_default_outline}
+                    """
                 else:
                     outline_prompt = "Áp dụng cấu trúc chuẩn hành chính."
 
                 rule_doc_type = "ĐÂY LÀ CÔNG VĂN:\n1. Không viết tiêu đề CÔNG VĂN giữa trang.\n2. Trích yếu: V/v...\n3. Kính gửi:..." if loai_vb == "Công văn" else f"ĐÂY LÀ {loai_vb.upper()}:\n1. Tên loại viết hoa giữa trang.\n2. Trích yếu nội dung."
 
                 prompt = f"""
-                Bạn là chuyên gia soạn thảo văn bản hành chính Việt Nam. Hãy soạn thảo 01 dự thảo văn bản hoàn chỉnh.
+                Bạn là chuyên gia soạn thảo văn bản hành chính Việt Nam. Hãy soạn thảo 01 dự thảo văn bản hoàn chỉnh, chuẩn xác theo thể thức nhà nước.
                 THỂ THỨC: {the_thuc} | CƠ QUAN: {co_quan} | LOẠI: {loai_vb}
                 YÊU CẦU: {yeu_cau}
+                
                 {outline_prompt}
-                DỮ LIỆU NGUỒN: {"".join(extracted_texts)}
-                QUY TẮC:
+                
+                DỮ LIỆU TÀI LIỆU NGUỒN CỦA CẤP TRÊN:
+                {"".join(extracted_texts)}
+                
+                QUY TẮC BẮT BUỘC:
                 {rule_doc_type}
-                - Không viết Quốc hiệu, Tiêu ngữ, Tên cơ quan, Số/Ký hiệu, Ngày tháng ở đầu bài.
+                - Không viết Quốc hiệu, Tiêu ngữ, Tên cơ quan, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện tự chèn).
                 - Không dùng ký tự Markdown (*, #, _).
-                - Cuối văn bản bắt buộc ghi:
+                - Ở mục cuối cùng bắt buộc ghi đúng định dạng:
                   Nơi nhận:
                   - Như trên;
                   - Lưu: VP.
