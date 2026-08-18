@@ -19,9 +19,15 @@ try:
 except ImportError:
     openpyxl = None
 
-# ==============================================================================
-# 1. CẤU HÌNH ĐĂNG NHẬP / ĐĂNG KÝ (KẾT NỐI GOOGLE SHEET)
-# ==============================================================================
+# 1. CẤU HÌNH TRANG STREAMLIT (BẮT BUỘC ĐẶT ĐẦU TIÊN)
+st.set_page_config(
+    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# 2. CẤU HÌNH ĐĂNG NHẬP / ĐĂNG KÝ (GOOGLE SHEET)
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
 
@@ -83,7 +89,7 @@ def check_login():
                                 st.rerun()
                             else:
                                 st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
-                        except Exception as e:
+                        except Exception:
                             st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
 
             with tab_register:
@@ -132,7 +138,7 @@ def check_login():
                                 st.success("Đăng ký thành công! Vui lòng quay lại tab Đăng nhập.")
                             else:
                                 st.error("Lỗi khi tạo tài khoản.")
-                        except:
+                        except Exception:
                             st.error("Không thể kết nối máy chủ đăng ký.")
 
             with tab_forgot:
@@ -168,27 +174,16 @@ def check_login():
                                     st.error("Lỗi khi cập nhật mật khẩu.")
                             else:
                                 st.error("Tên đăng nhập và Email/SĐT không khớp!")
-                        except Exception as e:
+                        except Exception:
                             st.error("Không thể xác minh thông tin.")
 
         return False
     return True
 
-# Thiết lập Cấu hình Trang
-st.set_page_config(
-    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
-    page_icon="🏛️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Bắt buộc Đăng nhập
 if not check_login():
     st.stop()
 
-# ==============================================================================
-# 2. CẤU HÌNH GIAO DIỆN & LƯU TRỮ KEY
-# ==============================================================================
+# 3. CẤU HÌNH LƯU KEY & GIAO DIỆN CHÍNH
 CONFIG_FILE = "config_keys.json"
 
 def load_config():
@@ -328,73 +323,19 @@ if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
 
 BUILTIN_TEMPLATES_DANG = {
-    "📌 Mẫu Công văn chuẩn (HD 05-HD/VPTW)": """KÍNH GỬI: Các chi, đảng bộ trực thuộc.
-1. Căn cứ ban hành...
-2. Nội dung chỉ đạo, triển khai...
-3. Tổ chức thực hiện và báo cáo kết quả...""",
-
-    "📌 Đề cương Kế hoạch chuẩn (HD 05-HD/VPTW)": """KẾ HOẠCH Về việc...
-I. MỤC ĐÍCH, YÊU CẦU
-1. Mục đích
-2. Yêu cầu
-II. NỘI DUNG VÀ NHIỆM VỤ CỤ THỂ
-1. Nhiệm vụ trọng tâm
-2. Giải pháp thực hiện
-III. TỔ CHỨC THỰC HIỆN
-1. Phân công trách nhiệm
-2. Tiến độ và thời gian hoàn thành""",
-
-    "📌 Đề cương Báo cáo chuẩn (HD 05-HD/VPTW)": """BÁO CÁO Tình hình...
-I. KẾT QUẢ ĐẠT ĐƯỢC
-1. Công tác chỉ đạo, quán triệt
-2. Kết quả thực hiện các nhiệm vụ
-II. HẠN CHẾ, KHUYẾT ĐIỂM VÀ NGUYÊN NHÂN
-1. Hạn chế, tồn tại
-2. Nguyên nhân (chủ quan, khách quan)
-III. PHƯƠNG HƯỚNG, NHIỆM VỤ TRỌNG TÂM THỜI GIAN TỚI""",
-
-    "📌 Mẫu Giấy mời chuẩn (HD 05-HD/VPTW)": """GIẤY MỜI Về việc...
-Đảng ủy phường Nhơn Trạch trân trọng kính mời: ...
-- Thời gian: Vào lúc ... giờ ..., ngày ... tháng ... năm 2026.
-- Địa điểm: Hội trường Đảng ủy phường Nhơn Trạch.
-- Chủ trì: Đồng chí Bí thư Đảng ủy phường.
-- Nội dung: ...""",
-
-    "📌 Mẫu Tờ trình chuẩn (HD 05-HD/VPTW)": """TỜ TRÌNH Về việc...
-KÍNH GỬI: Ban Thường vụ / Cơ quan cấp trên.
-I. SỰ CẦN THIẾT / CĂN CỨ TRÌNH
-II. NỘI DUNG CHÍNH CỦA TỜ TRÌNH
-III. ĐỀ XUẤT, KIẾN NGHỊ"""
+    "📌 Mẫu Công văn chuẩn (HD 05-HD/VPTW)": "KÍNH GỬI: Các chi, đảng bộ trực thuộc.\n1. Căn cứ ban hành...\n2. Nội dung chỉ đạo, triển khai...\n3. Tổ chức thực hiện và báo cáo kết quả...",
+    "📌 Đề cương Kế hoạch chuẩn (HD 05-HD/VPTW)": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\nII. NỘI DUNG VÀ NHIỆM VỤ CỤ THỂ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm\n2. Tiến độ và thời gian hoàn thành",
+    "📌 Đề cương Báo cáo chuẩn (HD 05-HD/VPTW)": "BÁO CÁO Tình hình...\nI. KẾT QUẢ ĐẠT ĐƯỢC\n1. Công tác chỉ đạo, quán triệt\n2. Kết quả thực hiện các nhiệm vụ\nII. HẠN CHẾ, KHUYẾT ĐIỂM VÀ NGUYÊN NHÂN\n1. Hạn chế, tồn tại\n2. Nguyên nhân (chủ quan, khách quan)\nIII. PHƯƠNG HƯỚNG, NHIỆM VỤ TRỌNG TÂM THỜI GIAN TỚI",
+    "📌 Mẫu Giấy mời chuẩn (HD 05-HD/VPTW)": "GIẤY MỜI Về việc...\nĐảng ủy phường Nhơn Trạch trân trọng kính mời: ...\n- Thời gian: Vào lúc ... giờ ..., ngày ... tháng ... năm 2026.\n- Địa điểm: Hội trường Đảng ủy phường Nhơn Trạch.\n- Chủ trì: Đồng chí Bí thư Đảng ủy phường.\n- Nội dung: ...",
+    "📌 Mẫu Tờ trình chuẩn (HD 05-HD/VPTW)": "TỜ TRÌNH Về việc...\nKÍNH GỬI: Ban Thường vụ / Cơ quan cấp trên.\nI. SỰ CẦN THIẾT / CĂN CỨ TRÌNH\nII. NỘI DUNG CHÍNH CỦA TỜ TRÌNH\nIII. ĐỀ XUẤT, KIẾN NGHỊ"
 }
 
 BUILTIN_TEMPLATES_NN = {
-    "📌 Mẫu Công văn chuẩn (NĐ 30/2020/NĐ-CP)": """KÍNH GỬI: Các phòng, ban, đơn vị trực thuộc.
-1. Căn cứ thực hiện...
-2. Nội dung giao nhiệm vụ/thông báo...
-3. Yêu cầu báo cáo/thời hạn hoàn thành...""",
-
-    "📌 Đề cương Kế hoạch chuẩn (NĐ 30/2020/NĐ-CP)": """KẾ HOẠCH Về việc...
-I. MỤC ĐÍCH, YÊU CẦU
-II. NỘI DUNG VÀ CHỈ TIÊU NHIỆM VỤ
-III. TỔ CHỨC THỰC HIỆN VÀ KINH PHÍ""",
-
-    "📌 Đề cương Báo cáo chuẩn (NĐ 30/2020/NĐ-CP)": """BÁO CÁO Kết quả thực hiện...
-I. TÌNH HÌNH VÀ KẾT QUẢ THỰC HIỆN
-II. ĐÁNH GIÁ CHUNG (Ưu điểm, Hạn chế, Nguyên nhân)
-III. NHIỆM VỤ GIẢI PHÁP VÀ ĐỀ XUẤT, KIẾN NGHỊ""",
-
-    "📌 Mẫu Giấy mời chuẩn (NĐ 30/2020/NĐ-CP)": """GIẤY MỜI Về việc...
-Ủy ban nhân dân phường Nhơn Trạch trân trọng kính mời: ...
-- Thời gian: Vào lúc ... giờ ..., ngày ... tháng ... năm 2026.
-- Địa điểm: Phòng họp UBND phường.
-- Chủ trì: Đồng chí Chủ tịch UBND phường.
-- Nội dung: ...""",
-
-    "📌 Mẫu Tờ trình chuẩn (NĐ 30/2020/NĐ-CP)": """TỜ TRÌNH Về việc...
-KÍNH GỬI: Ủy ban nhân dân cấp trên / Cơ quan có thẩm quyền.
-I. CĂN CỨ PHÁP LÝ VÀ SỰ CẦN THIẾT
-II. NỘI DUNG ĐỀ XUẤT
-III. DỰ THẢO NGHỊ QUYẾT/QUYẾT ĐỊNH KÈM THEO"""
+    "📌 Mẫu Công văn chuẩn (NĐ 30/2020/NĐ-CP)": "KÍNH GỬI: Các phòng, ban, đơn vị trực thuộc.\n1. Căn cứ thực hiện...\n2. Nội dung giao nhiệm vụ/thông báo...\n3. Yêu cầu báo cáo/thời hạn hoàn thành...",
+    "📌 Đề cương Kế hoạch chuẩn (NĐ 30/2020/NĐ-CP)": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\nII. NỘI DUNG VÀ CHỈ TIÊU NHIỆM VỤ\nIII. TỔ CHỨC THỰC HIỆN VÀ KINH PHÍ",
+    "📌 Đề cương Báo cáo chuẩn (NĐ 30/2020/NĐ-CP)": "BÁO CÁO Kết quả thực hiện...\nI. TÌNH HÌNH VÀ KẾT QUẢ THỰC HIỆN\nII. ĐÁNH GIÁ CHUNG (Ưu điểm, Hạn chế, Nguyên nhân)\nIII. NHIỆM VỤ GIẢI PHÁP VÀ ĐỀ XUẤT, KIẾN NGHỊ",
+    "📌 Mẫu Giấy mời chuẩn (NĐ 30/2020/NĐ-CP)": "GIẤY MỜI Về việc...\nỦy ban nhân dân phường Nhơn Trạch trân trọng kính mời: ...\n- Thời gian: Vào lúc ... giờ ..., ngày ... tháng ... năm 2026.\n- Địa điểm: Phòng họp UBND phường.\n- Chủ trì: Đồng chí Chủ tịch UBND phường.\n- Nội dung: ...",
+    "📌 Mẫu Tờ trình chuẩn (NĐ 30/2020/NĐ-CP)": "TỜ TRÌNH Về việc...\nKÍNH GỬI: Ủy ban nhân dân cấp trên / Cơ quan có thẩm quyền.\nI. CĂN CỨ PHÁP LÝ VÀ SỰ CẦN THIẾT\nII. NỘI DUNG ĐỀ XUẤT\nIII. DỰ THẢO NGHỊ QUYẾT/QUYẾT ĐỊNH KÈM THEO"
 }
 
 def read_uploaded_file(uploaded_file):
@@ -637,7 +578,7 @@ def clean_html_response(res_text):
     res_text = re.sub(r'<think>.*?</think>', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'```[a-zA-Z]*', '', res_text)
     res_text = res_text.replace('```', '')
-    res_text = re.sub(r'', '', res_text, flags=re.DOTALL)
+    res_text = re.sub(r'<!--.*?-->', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'^(Dưới đây là|Đây là|Gửi bạn|Sau đây là).*\n', '', res_text, flags=re.IGNORECASE)
     res_text = res_text.replace('&nbsp;', ' ')
     return res_text.strip()
@@ -702,7 +643,7 @@ def dispatch_ai_call(ai_engine, gemini_key, gemini_mod, openai_key, openai_mod, 
     else:
         return call_ollama_api(ollama_mod, prompt)
 
-# --- THANH SIDEBAR TÔNG ĐÔ - VÀNG TRANG NGHIÊM ---
+# 4. THANH SIDEBAR TÔNG ĐÔ - VÀNG
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -771,7 +712,7 @@ with st.sidebar:
             st.session_state.user_info = {}
             st.rerun()
 
-# --- BANNER CHÍNH SANG TRỌNG ---
+# 5. GIAO DIỆN CHÍNH
 st.markdown("""
 <div class="app-header">
     <div>
@@ -782,7 +723,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# CÁC BƯỚC NHẬP LIỆU CÓ HUY HIỆU VÀNG KIM
 top_col1, top_col2 = st.columns(2)
 
 with top_col1:
@@ -956,4 +896,71 @@ if st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use
             """
             try:
                 res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, prompt)
-                st.session_state.current_draft = clean
+                st.session_state.current_draft = clean_html_response(res)
+                st.session_state.chat_messages = []
+            except Exception as e:
+                st.error(f"Lỗi khi xử lý AI: {e}")
+
+if st.session_state.current_draft:
+    st.divider()
+    bottom_col1, bottom_col2 = st.columns([3, 2])
+    
+    with bottom_col1:
+        st.markdown("##### 📄 Bản dự thảo trang Word (A4)")
+        st.markdown(f'<div class="word-page">{st.session_state.current_draft}</div>', unsafe_allow_html=True)
+        
+        docx_bytes = parse_html_to_docx(st.session_state.current_draft)
+        file_download_name = f"Du_thao_{doc_type}_{co_quan_ban_hanh}.docx".replace(" ", "_")
+        st.download_button(
+            label="📥 TẢI VỀ FILE WORD (.DOCX)",
+            data=docx_bytes,
+            file_name=file_download_name,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            type="primary",
+            use_container_width=True
+        )
+
+    with bottom_col2:
+        st.markdown(f"##### 💬 Chat AI sửa đổi ({ai_engine})")
+        st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
+
+        chat_container = st.container(height=360)
+        with chat_container:
+            for msg in st.session_state.chat_messages:
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
+
+        if user_edit_req := st.chat_input("Nhập yêu cầu chỉnh sửa văn bản..."):
+            st.session_state.chat_messages.append({"role": "user", "content": user_edit_req})
+            
+            with chat_container:
+                with st.chat_message("user"):
+                    st.write(user_edit_req)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("AI đang cập nhật lại văn bản..."):
+                        edit_prompt = f"""
+                        Bạn là biên tập viên văn bản hành chính.
+                        DƯỚI ĐÂY LÀ MÃ HTML BẢN DỰ THẢO VĂN BẢN HIỆN TẠI:
+                        ---
+                        {st.session_state.current_draft}
+                        ---
+
+                        YÊU CẦU CHỈNH SỬA TỪ NGUỜI DÙNG:
+                        "{user_edit_req}"
+
+                        QUY TẮC CỐ ĐỊNH:
+                        1. Hãy sửa đổi trực tiếp vào MÃ HTML BẢN DỰ THẢO HIỆN TẠI theo đúng yêu cầu trên.
+                        2. Giữ nguyên toàn bộ cấu trúc các thẻ HTML (<table>, <tr>, <td>, <p class="kinh-gui">, <p class="noi-nhan">, <p class="body-p">, <b>, <i>, <u>).
+                        3. Tuyệt đối KHÔNG dùng ký tự Markdown (*, **, #).
+                        4. Tuyệt đối KHÔNG trả lời bằng lời chào/thoại. CHỈ TRẢ VỀ TOÀN BỘ MÃ HTML SAU KHI SỬA.
+                        5. TUYỆT ĐỐI KHÔNG DÙNG &nbsp; TẠO KHOẢNG TRẮNG.
+                        """
+                        try:
+                            updated_res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, edit_prompt)
+                            cleaned_res = clean_html_response(updated_res)
+                            st.session_state.current_draft = cleaned_res
+                            st.session_state.chat_messages.append({"role": "assistant", "content": "✅ Đã cập nhật văn bản lên trang Word!"})
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Lỗi khi sửa văn bản: {e}")
