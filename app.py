@@ -82,7 +82,6 @@ if not check_login(): st.stop()
 
 SYMBOL_MAP = {"Kế hoạch": "KH", "Công văn": "CV", "Báo cáo": "BC", "Tờ trình": "TTr", "Thông báo": "TB", "Quyết định": "QĐ", "Hướng dẫn": "HD"}
 
-# ĐỀ CƯƠNG CHUẨN ĐÚNG THEO THỂ THỨC HƯỚNG DẪN 05 VÀ NGHỊ ĐỊNH 30
 TEMPLATES_CONFIG = {
     "Khối Đảng": {
         "Kế hoạch": "KẾ HOẠCH\nVề việc triển khai thực hiện...\n\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\n\nII. NỘI DUNG VÀ NHIỆM VỤ TRỌNG TÂM\n1. Công tác quán triệt, tuyên truyền\n2. Các nhiệm vụ và giải pháp cụ thể\n\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm cho các cơ quan, đơn vị\n2. Chế độ thông tin, báo cáo",
@@ -216,6 +215,8 @@ if btn_process:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(model_name)
                 content_parts, extracted_texts = [], []
+                
+                # Đọc file nguồn cấp trên
                 for uf in uploaded_files:
                     bytes_data = uf.read()
                     if uf.name.lower().endswith('.pdf'):
@@ -230,40 +231,23 @@ if btn_process:
                         extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + "\n".join([p.text for p in doc_file.paragraphs]))
                     else: content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
-                # Trích xuất Cấu trúc/Khung sườn của file mẫu riêng (Chỉ lấy tiêu đề mục, không lấy nội dung thô)
-                custom_template_structure = ""
+                # XỬ LÝ FILE MẪU RIÊNG (Truyền trực tiếp vào model để Gemini đọc thông minh chuẩn xác)
+                custom_template_parts = []
                 if custom_template_file is not None:
-                    try:
-                        tpl_bytes = custom_template_file.read()
-                        fname = custom_template_file.name.lower()
-                        raw_tpl_text = ""
-                        if fname.endswith('.docx'):
-                            doc_tpl = docx.Document(io.BytesIO(tpl_bytes))
-                            raw_tpl_text = "\n".join([p.text for p in doc_tpl.paragraphs if p.text.strip()])
-                        elif fname.endswith('.pdf'):
-                            reader_tpl = pypdf.PdfReader(io.BytesIO(tpl_bytes))
-                            raw_tpl_text = "".join([page.extract_text() or "" for page in reader_tpl.pages])
-                        elif fname.endswith('.doc'):
-                            raw_tpl_text = tpl_bytes.decode("latin-1", errors="ignore")
-                        
-                        # Chỉ lọc ra các dòng tiêu đề cấu trúc (I, II, III, Điều, 1, 2...) làm khung sườn
-                        struct_lines = []
-                        for line in raw_tpl_text.split('\n'):
-                            l_str = line.strip()
-                            if re.match(r'^(I|II|III|IV|V|VI|VII|VIII|Điều|\d+\.)', l_str):
-                                struct_lines.append(l_str)
-                        if struct_lines:
-                            custom_template_structure = "\n".join(struct_lines)
-                    except Exception as tpl_err:
-                        st.warning(f"Lỗi đọc file mẫu: {str(tpl_err)}")
+                    tpl_bytes = custom_template_file.read()
+                    mime_type = custom_template_file.type if custom_template_file.type else "application/msword"
+                    if custom_template_file.name.lower().endswith('.pdf'): mime_type = "application/pdf"
+                    elif custom_template_file.name.lower().endswith('.docx'): mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    
+                    custom_template_parts.append({"mime_type": mime_type, "data": tpl_bytes})
 
-                # LOGIC CHỌN KHUNG SƯỞN (ƯU TIÊN CẤU TRÚC FILE MẪU RIÊNG -> ĐỀ CƯƠNG CHUẨN)
+                # LOGIC CHỌN KHUNG SƯỞN CHO PROMPT
                 outline_prompt = ""
-                if custom_template_structure.strip():
-                    outline_prompt = f"""
-                    BẮT BUỘC TUÂN THỦ KHUNG SƯỞN CẤU TRÚC (CÁC MỤC I, II, III...) CỦA FILE MẪU RIÊNG SAU ĐÂY:
-                    {custom_template_structure}
-                    LƯU Ý QUAN TRỌNG: Chỉ lấy khung sườn cấu trúc trên để tổ chức bố cục văn bản, CÒN NỘI DUNG BÊN TRONG PHẢI TỰ VIẾT MỚI hoàn toàn dựa trên tài liệu nguồn của cấp trên và yêu cầu thực tế, TUYỆT ĐỐI KHÔNG COPY NỘI DUNG CŨ CỦA FILE MẪU VÀO DỰ THẢO.
+                if custom_template_file is not None:
+                    outline_prompt = """
+                    BẮT BUỘC TUÂN THỦ TUYỆT ĐỐI CẤU TRÚC VÀ KHUNG SƯỞN CỦA FILE MẪU VĂN BẢN RIÊNG ĐƯỢC ĐÍNH KÈM:
+                    - Hãy phân tích bố cục, hệ thống các mục (I, II, III...), cách phân chia đề mục của file mẫu riêng để làm khuôn mẫu cấu trúc.
+                    - LẤY NỘI DUNG TỪ TÀI LIỆU CẤP TRÊN ĐỂ VIẾT VÀO CÁC MỤC ĐÓ, TUYỆT ĐỐI KHÔNG COPY NỘI DUNG CŨ CỦA FILE MẪU VÀO DỰ THẢO. Chỉ lấy khung định hình, nội dung bên trong phải hoàn toàn mới theo đúng chỉ đạo cấp trên.
                     """
                 elif selected_builtin != "(Không chọn mẫu gợi ý)":
                     outline_prompt = f"""
@@ -298,8 +282,9 @@ if btn_process:
                   (Để trống khoảng ký tên)
                   Họ và Tên
                 """
-                content_parts.insert(0, prompt)
-                response = model.generate_content(content_parts)
+                
+                final_parts = [prompt] + content_parts + custom_template_parts
+                response = model.generate_content(final_parts)
                 st.session_state.draft_text = response.text
                 st.session_state.current_agency = co_quan
                 st.session_state.chat_history = []
