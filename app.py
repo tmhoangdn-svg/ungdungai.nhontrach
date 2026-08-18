@@ -16,24 +16,26 @@ import json, io, re, os
 # ==============================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
-RULES_FILE = "ai_rules_memory.json"
+CONFIG_FILE = "config_keys.json"
 
-def load_ai_rules():
-    if os.path.exists(RULES_FILE):
+def load_config():
+    if os.path.exists(CONFIG_FILE):
         try:
-            with open(RULES_FILE, "r", encoding="utf-8") as f:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
-            return []
-    return []
+        except Exception:
+            return {}
+    return {}
 
-def save_ai_rules(rules):
+def save_config(data):
     try:
-        with open(RULES_FILE, "w", encoding="utf-8") as f:
-            json.dump(rules, f, ensure_ascii=False, indent=2)
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
         return True
-    except:
+    except Exception:
         return False
+
+config_data = load_config()
 
 def check_login():
     if "logged_in" not in st.session_state:
@@ -94,7 +96,7 @@ def check_login():
                                 st.rerun()
                             else:
                                 st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
-                        except Exception as e:
+                        except Exception:
                             st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
 
             # 2. TAB ĐĂNG KÝ
@@ -144,7 +146,7 @@ def check_login():
                                 st.success("Đăng ký thành công! Vui lòng quay lại tab Đăng nhập.")
                             else:
                                 st.error("Lỗi khi tạo tài khoản.")
-                        except:
+                        except Exception:
                             st.error("Không thể kết nối máy chủ đăng ký.")
 
             # 3. TAB QUÊN MẬT KHẨU
@@ -181,7 +183,7 @@ def check_login():
                                     st.error("Lỗi khi cập nhật mật khẩu.")
                             else:
                                 st.error("Tên đăng nhập và Email/SĐT không khớp!")
-                        except Exception as e:
+                        except Exception:
                             st.error("Không thể xác minh thông tin.")
 
         return False
@@ -203,7 +205,30 @@ SYMBOL_MAP = {
     "Báo cáo": "BC",
     "Tờ trình": "TTr",
     "Thông báo": "TB",
-    "Quyết định": "QĐ"
+    "Quyết định": "QĐ",
+    "Hướng dẫn": "HD"
+}
+
+# TẬP HỢP ĐỀ CƯƠNG CHUẨN ĐẢNG & NHÀ NƯỚC
+TEMPLATES_CONFIG = {
+    "Khối Đảng": {
+        "Kế hoạch": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\n1. Mục đích\n2. Yêu cầu\nII. NỘI DUNG VÀ NHIỆM VỤ CỤ THỂ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN\n1. Phân công trách nhiệm\n2. Tiến độ và thời gian hoàn thành",
+        "Công văn": "Kính gửi: Các chi, đảng bộ cơ sở trực thuộc.\n1. Căn cứ ban hành và mục đích triển khai...\n2. Nội dung cụ thể hóa chỉ đạo của cấp trên...\n3. Tổ chức thực hiện và chế độ báo cáo kết quả...",
+        "Báo cáo": "BÁO CÁO Tình hình...\nI. KẾT QUẢ ĐẠT ĐƯỢC\n1. Công tác lãnh đạo, chỉ đạo, quán triệt\n2. Kết quả thực hiện các nhiệm vụ chính trị\nII. HẠN CHẾ, KHUYẾT ĐIỂM VÀ NGUYÊN NHÂN\n1. Hạn chế, tồn tại\n2. Nguyên nhân (chủ quan, khách quan)\nIII. PHƯƠNG HƯỚNG, NHIỆM VỤ TRỌNG TÂM THỜI GIAN TỚI",
+        "Tờ trình": "TỜ TRÌNH Về việc...\nKính gửi: Ban Thường vụ Đảng ủy cấp trên / Cơ quan có thẩm quyền.\nI. SỰ CẦN THIẾT VÀ CĂN CỨ TRÌNH\nII. NỘI DUNG CHÍNH CỦA TỜ TRÌNH\nIII. ĐỀ XUẤT, KIẾN NGHỊ",
+        "Thông báo": "THÔNG BÁO Kết luận của...\n1. Đánh giá tình hình thực hiện nhiệm vụ vừa qua\n2. Ý kiến kết luận và phân công nhiệm vụ cụ thể thời gian tới\n3. Trách nhiệm tổ chức thực hiện của các cơ quan, đơn vị",
+        "Quyết định": "QUYẾT ĐỊNH Về việc...\n- Căn cứ Điều lệ Đảng và Quy chế làm việc...\nBAN THƯỜNG VỤ QUYẾT ĐỊNH:\nĐiều 1. (Nội dung quyết định cụ thể hóa)\nĐiều 2. (Trách nhiệm của các tổ chức, cá nhân)\nĐiều 3. Quyết định này có hiệu lực kể từ ngày ký...",
+        "Hướng dẫn": "HƯỚNG DẪN Về việc...\n- Căn cứ văn bản chỉ đạo của cấp trên...\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG HƯỚNG DẪN CỤ THỂ\n1. Nhiệm vụ chuyên môn\n2. Quy trình, hồ sơ thực hiện\nIV. TỔ CHỨC THỰC HIỆN VÀ BÁO CÁO"
+    },
+    "Khối Nhà nước": {
+        "Kế hoạch": "KẾ HOẠCH Về việc...\nI. MỤC ĐÍCH, YÊU CẦU\nII. NỘI DUNG VÀ CHỈ TIÊU NHIỆM VỤ\n1. Nhiệm vụ trọng tâm\n2. Giải pháp thực hiện\nIII. TỔ CHỨC THỰC HIỆN VÀ KINH PHÍ",
+        "Công văn": "Kính gửi: Các phòng, ban, đơn vị trực thuộc.\n1. Căn cứ văn bản chỉ đạo cấp trên...\n2. Nội dung giao nhiệm vụ và yêu cầu thực hiện...\n3. Thời hạn hoàn thành và báo cáo...",
+        "Báo cáo": "BÁO CÁO Kết quả thực hiện...\nI. TÌNH HÌNH VÀ KẾT QUẢ ĐẠT ĐƯỢC\nII. ĐÁNH GIÁ CHUNG (Ưu điểm, Hạn chế, Nguyên nhân)\nIII. NHIỆM VỤ GIẢI PHÁP VÀ ĐỀ XUẤT, KIẾN NGHỊ",
+        "Tờ trình": "TỜ TRÌNH Về việc...\nKính gửi: Ủy ban nhân dân cấp trên / Cơ quan có thẩm quyền.\nI. CĂN CỨ PHÁP LÝ VÀ SỰ CẦN THIẾT\nII. NỘI DUNG ĐỀ XUẤT, PHÊ DUYỆT\nIII. DỰ THẢO VĂN BẢN KÈM THEO",
+        "Thông báo": "THÔNG BÁO Về việc...\n1. Nội dung thông báo / Ý kiến kết luận chỉ đạo của UBND\n2. Giao nhiệm vụ cho các phòng ban, đơn vị phối hợp triển khai",
+        "Quyết định": "QUYẾT ĐỊNH Về việc...\n- Căn cứ Luật Tổ chức chính quyền địa phương...\nỦY BAN NHÂN DÂN QUYẾT ĐỊNH:\nĐiều 1. (Nội dung quyết định cụ thể hóa)\nĐiều 2. (Trách nhiệm của các cơ quan liên quan)\nĐiều 3. Quyết định có hiệu lực kể từ ngày ký...",
+        "Hướng dẫn": "HƯỚNG DẪN Thực hiện...\n- Căn cứ quy định pháp luật và văn bản cấp trên...\nI. MỤC ĐÍCH, YÊU CẦU\nII. ĐỐI TƯỢNG VÀ PHẠM VI ÁP DỤNG\nIII. NỘI DUNG VÀ TRÌNH TỰ THỰC HIỆN\nIV. TỔ CHỨC THỰC HIỆN"
+    }
 }
 
 a4_css = """
@@ -395,29 +420,26 @@ with st.sidebar:
     
     the_thuc = st.radio("Chọn Khối văn bản:", ["Khối Đảng", "Khối Nhà nước"])
     if the_thuc == "Khối Đảng":
-        st.info("📌 **Áp dụng:** Hướng dẫn 05-HD/VPTW của Văn phòng Trung ương Đảng")
+        the_thuc_doc = "Hướng dẫn 05-HD/VPTW của Văn phòng Trung ương Đảng"
+        default_agency = "ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH"
     else:
-        st.info("📌 **Áp dụng:** Nghị định 30/2020/NĐ-CP của Chính phủ")
+        the_thuc_doc = "Nghị định 30/2020/NĐ-CP của Chính phủ"
+        default_agency = "UBND PHƯƠNG NHƠN TRẠCH"
+
+    st.info(f"📌 **Áp dụng:** {the_thuc_doc}")
         
     st.subheader("⚙️ Cấu hình AI")
     ai_provider = st.selectbox("AI xử lý chính", ["Google Gemini"])
-    api_key = st.text_input("Gemini API key", type="password")
-    model_name = st.selectbox("Model", ["gemini-3.6-flash"])
+    
+    saved_key = config_data.get("gemini_key", "")
+    api_key = st.text_input("Gemini API key", value=saved_key, type="password")
+    model_name = st.selectbox("Model", ["gemini-3.6-flash", "gemini-1.5-pro", "gemini-1.5-flash"])
 
-    # KHU VỰC QUẢN LÝ QUY TẮC GHI NHỚ
-    st.write("---")
-    st.subheader("🧠 Sổ tay ghi nhớ AI")
-    current_rules = load_ai_rules()
-    if current_rules:
-        st.caption("Các quy tắc AI đang ghi nhớ và áp dụng:")
-        for idx, r in enumerate(current_rules):
-            st.markdown(f"• {r}")
-        if st.button("🗑️ Xóa toàn bộ ghi nhớ", use_container_width=True):
-            save_ai_rules([])
-            st.success("Đã xóa bộ nhớ quy tắc!")
-            st.rerun()
-    else:
-        st.caption("Chưa có quy tắc ghi nhớ nào. Khi chat sửa đổi, anh có thể dặn 'Nhớ luôn quy tắc...' để AI tự lưu.")
+    if st.button("💾 Lưu API Key vĩnh viễn", use_container_width=True):
+        if save_config({"gemini_key": api_key}):
+            st.success("Đã lưu API Key thành công!")
+        else:
+            st.error("Lỗi khi lưu API Key!")
 
     st.write("---")
     user_info = st.session_state.get("user_info", {})
@@ -453,30 +475,43 @@ with col1:
         type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
         accept_multiple_files=True
     )
-    loai_vb = st.selectbox("Chọn Loại văn bản đầu ra:", ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định"])
+    # Bổ sung Hướng dẫn vào danh sách 7 loại văn bản
+    loai_vb = st.selectbox(
+        "Chọn Loại văn bản đầu ra:", 
+        ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định", "Hướng dẫn"]
+    )
 
 with col2:
     st.markdown('<span class="section-badge">BƯỚC 2</span> <b>Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
     yeu_cau = st.text_area("Anh muốn cụ thể hóa như thế nào?:", height=100, placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...")
-    co_quan_default = "ĐẢNG ỦY PHƯƠNG NHƠN TRẠCH" if the_thuc == "Khối Đảng" else "UBND PHƯƠNG NHƠN TRẠCH"
     
     if "current_agency" not in st.session_state:
-        st.session_state.current_agency = co_quan_default
+        st.session_state.current_agency = default_agency
     co_quan = st.text_input("Cơ quan ban hành dự thảo:", value=st.session_state.current_agency)
 
-# MỤC 3
+# MỤC 3: TỰ ĐỘNG ĐỔI ĐỀ CƯƠNG THEO LOẠI VĂN BẢN VÀ KHỐI
 st.markdown('<br>', unsafe_allow_html=True)
-st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
+    st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
     custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["docx"], key="custom_template")
+
 with col3_2:
-    de_cuong_goy_y = st.selectbox("📌 Mẫu gợi ý / Đề cương chuẩn:", [
-        "(Không chọn mẫu gợi ý)",
-        "Đề cương chuẩn Hướng dẫn 05-HD/VPTW (Công tác Đảng)",
-        "Đề cương Kế hoạch hành động 100 ngày Chuyển đổi số",
-        "Đề cương Báo cáo kết quả thực hiện nhiệm vụ chính trị"
-    ])
+    st.markdown(f'<span style="color: #ffd700; font-size: 13px;">📌</span> <b>Mẫu gợi ý / Đề cương chuẩn ({the_thuc}):</b>', unsafe_allow_html=True)
+    
+    # Tự động lấy đề cương chuẩn của loại văn bản đã chọn
+    current_default_outline = TEMPLATES_CONFIG[the_thuc].get(loai_vb, "")
+    outline_title = f"📌 Đề cương {loai_vb} chuẩn ({'HD 05-HD/VPTW' if the_thuc == 'Khối Đảng' else 'NĐ 30/2020/NĐ-CP'})"
+    
+    selected_builtin = st.selectbox(
+        "Mẫu gợi ý / Đề cương chuẩn:",
+        ["(Không chọn mẫu gợi ý)", outline_title],
+        label_visibility="collapsed"
+    )
+
+    if selected_builtin != "(Không chọn mẫu gợi ý)":
+        with st.expander("👁️ Xem trước Đề cương chuẩn:", expanded=True):
+            st.code(current_default_outline, language="text")
 
 st.markdown("---")
 btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True)
@@ -511,7 +546,7 @@ if btn_process:
                                 extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + pdf_text)
                             else:
                                 content_parts.append({"mime_type": "application/pdf", "data": bytes_data})
-                        except:
+                        except Exception:
                             content_parts.append({"mime_type": "application/pdf", "data": bytes_data})
                     elif uf.name.lower().endswith('.docx'):
                         doc_file = docx.Document(io.BytesIO(bytes_data))
@@ -531,15 +566,8 @@ if btn_process:
                         st.warning(f"Lỗi đọc file mẫu: {str(tpl_err)}")
 
                 de_cuong_prompt = ""
-                if de_cuong_goy_y != "(Không chọn mẫu gợi ý)":
-                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯƠNG: {de_cuong_goy_y}"
-
-                # NẠP CÁC QUY TẮC ĐÃ GHI NHỚ TỪ TRƯỚC
-                saved_rules_prompt = ""
-                loaded_rules = load_ai_rules()
-                if loaded_rules:
-                    rules_str = "\n".join([f"- {r}" for r in loaded_rules])
-                    saved_rules_prompt = f"\nCÁC QUY TẮC CỐ ĐỊNH PHẢI TUÂN THỦ TỪ TRƯỚC ĐẾN NAY:\n{rules_str}\n"
+                if selected_builtin != "(Không chọn mẫu gợi ý)":
+                    de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯƠNG CHUẨN BẮT BUỘC SAU:\n{current_default_outline}\n"
 
                 rule_doc_type = ""
                 if loai_vb == "Công văn":
@@ -564,7 +592,6 @@ if btn_process:
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
                 {de_cuong_prompt}
                 {custom_template_prompt}
-                {saved_rules_prompt}
                 
                 DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
@@ -887,17 +914,9 @@ if st.session_state.draft_text:
                     try:
                         genai.configure(api_key=api_key)
                         model = genai.GenerativeModel(model_name)
-                        
-                        # Nạp các quy tắc đã có để AI tham chiếu khi sửa
-                        saved_rules = load_ai_rules()
-                        rules_ctx = "\n".join([f"- {r}" for r in saved_rules]) if saved_rules else "Chưa có quy tắc riêng."
-                        
                         edit_prompt = f"""
                         BẢN DỰ THẢO HIỆN TẠI:
                         {st.session_state.draft_text}
-
-                        CÁC QUY TẮC ĐÃ LƯU TRƯỚC ĐÂY:
-                        {rules_ctx}
 
                         YÊU CẦU CHỈNH SỬA TỪ NGƯỜI DÙNG:
                         {edit_instruction}
@@ -914,13 +933,6 @@ if st.session_state.draft_text:
                             st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
                         elif "nhơn trạch" in edit_lower:
                             st.session_state.current_agency = st.session_state.current_agency.replace("ĐẠI PHƯỚC", "NHƠN TRẠCH").replace("Đại Phước", "Nhơn Trạch")
-                        
-                        # KIỂM TRA VÀ TỰ ĐỘNG LƯU VÀO BỘ NHỚ QUY TẮC
-                        keywords_remember = ["nhớ", "lưu ý", "từ nay", "các văn bản sau", "luôn luôn", "quy tắc"]
-                        if any(k in edit_lower for k in keywords_remember):
-                            if edit_instruction not in saved_rules:
-                                saved_rules.append(edit_instruction)
-                                save_ai_rules(saved_rules)
                         
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
