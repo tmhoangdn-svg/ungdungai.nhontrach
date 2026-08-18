@@ -225,7 +225,7 @@ st.markdown("""
         border: 1px solid #e0a800;
         border-radius: 10px;
         padding: 16px 22px;
-        margin-bottom: 36px;
+        margin-bottom: 0px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         display: flex;
         align-items: center;
@@ -554,7 +554,7 @@ def parse_html_to_docx(html_text):
                                 if clean_t:
                                     run = p.add_run(clean_t)
                                     run.font.name = 'Times New Roman'
-                                    run.font.size = Pt(12) if r_idx == 0 else Pt(13)
+                                    run.font.size = Pt(11) if ('noi-nhan' in c_attrs or 'noi-nhan' in attrs) else (Pt(12) if r_idx == 0 else Pt(13))
                                     if is_bold:
                                         run.bold = True
                                     if is_italic:
@@ -621,6 +621,7 @@ def parse_html_to_docx(html_text):
                     if clean_t:
                         run = p.add_run(clean_t)
                         run.font.name = 'Times New Roman'
+                        run.font.size = Pt(11) if 'noi-nhan' in attrs else Pt(13)
                         if is_bold:
                             run.bold = True
                         if is_italic:
@@ -723,6 +724,7 @@ st.markdown("""
     </div>
     <div style="font-size: 30px; font-weight: bold; color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">VN</div>
 </div>
+<div style="height: 38px;"></div>
 """, unsafe_allow_html=True)
 
 # BƯỚC 1 & 2
