@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import docx
 from docx import Document
 from docx.shared import Pt, Cm
@@ -11,12 +12,181 @@ import json
 import io
 import re
 import os
+from datetime import datetime
 
 try:
     import openpyxl
 except ImportError:
     openpyxl = None
 
+# ==============================================================================
+# 1. CẤU HÌNH TRANG & ĐĂNG NHẬP (GOOGLE SHEET)
+# ==============================================================================
+st.set_page_config(
+    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
+
+def check_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "user_info" not in st.session_state:
+        st.session_state.user_info = {}
+    if "reg_missing" not in st.session_state:
+        st.session_state.reg_missing = []
+
+    if not st.session_state.logged_in:
+        _, center_col, _ = st.columns([1, 1.2, 1])
+        with center_col:
+            st.markdown("""
+            <div style="text-align: center; margin-top: 25px; margin-bottom: 20px;">
+                <span style="font-size: 42px;">🔐</span>
+                <h2 style="margin: 8px 0 0 0; font-size: 24px; font-weight: 800; color: #ffd700;">ĐĂNG NHẬP HỆ THỐNG</h2>
+                <p style="color: #a0aec0; font-size: 13px; margin-top: 4px;">Phần mềm Cụ thể hóa Văn bản Hành chính</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            tab_login, tab_register, tab_forgot = st.tabs(["Đăng nhập", "Đăng ký tài khoản", "Quên mật khẩu"])
+
+            with tab_login:
+                with st.form("login_form"):
+                    username = st.text_input("Tên đăng nhập")
+                    password = st.text_input("Mật khẩu", type="password")
+                    btn_login = st.form_submit_button("Đăng nhập", use_container_width=True)
+
+                if btn_login:
+                    if username == "admin" and password == "Adminai":
+                        st.success("Xin chào Admin!")
+                        st.session_state.logged_in = True
+                        st.session_state.user_info = {"username": "admin", "fullname": "Quản trị viên", "email_phone": "N/A"}
+                        st.rerun()
+                    else:
+                        try:
+                            df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                            df.columns = [c.strip() for c in df.columns]
+                            user_match = df[(df['username'].astype(str) == username) & (df['password'].astype(str) == password)]
+                            
+                            if not user_match.empty:
+                                user_data = user_match.iloc[0]
+                                st.success(f"Đăng nhập thành công! Chào mừng {user_data['fullname']}")
+                                st.session_state.logged_in = True
+                                
+                                contact_val = "Chưa cập nhật"
+                                if 'email_phone' in user_data and pd.notna(user_data['email_phone']):
+                                    contact_val = str(user_data['email_phone'])
+                                elif 'Email/SĐT' in user_data and pd.notna(user_data['Email/SĐT']):
+                                    contact_val = str(user_data['Email/SĐT'])
+
+                                st.session_state.user_info = {
+                                    "username": username,
+                                    "fullname": user_data['fullname'],
+                                    "email_phone": contact_val
+                                }
+                                st.rerun()
+                            else:
+                                st.error("Tên đăng nhập hoặc mật khẩu không chính xác!")
+                        except Exception:
+                            st.error("Chưa thể kết nối đến dữ liệu tài khoản.")
+
+            with tab_register:
+                lbl_user = "Tên đăng nhập mới" + (" :red[*]" if "user" in st.session_state.reg_missing else "")
+                lbl_name = "Họ và tên" + (" :red[*]" if "name" in st.session_state.reg_missing else "")
+                lbl_contact = "Email hoặc Số điện thoại" + (" :red[*]" if "contact" in st.session_state.reg_missing else "")
+                lbl_pass = "Mật khẩu mới" + (" :red[*]" if "pass" in st.session_state.reg_missing else "")
+                lbl_conf = "Xác nhận mật khẩu" + (" :red[*]" if "conf" in st.session_state.reg_missing else "")
+
+                with st.form("register_form"):
+                    new_user = st.text_input(lbl_user, key="reg_user")
+                    new_name = st.text_input(lbl_name, key="reg_name")
+                    new_contact = st.text_input(lbl_contact, key="reg_contact")
+                    new_pass = st.text_input(lbl_pass, type="password", key="reg_pass")
+                    confirm_pass = st.text_input(lbl_conf, type="password", key="reg_conf")
+                    btn_register = st.form_submit_button("Đăng ký", use_container_width=True)
+
+                if btn_register:
+                    missing = []
+                    if not new_user.strip(): missing.append("user")
+                    if not new_name.strip(): missing.append("name")
+                    if not new_contact.strip(): missing.append("contact")
+                    if not new_pass.strip(): missing.append("pass")
+                    if not confirm_pass.strip(): missing.append("conf")
+
+                    st.session_state.reg_missing = missing
+
+                    if missing:
+                        st.warning("Vui lòng điền đầy đủ các thông tin có dấu (*) đỏ!")
+                        st.rerun()
+                    elif new_pass != confirm_pass:
+                        st.error("Mật khẩu xác nhận không khớp!")
+                    else:
+                        st.session_state.reg_missing = []
+                        payload = {
+                            "action": "register",
+                            "username": new_user,
+                            "password": new_pass,
+                            "fullname": new_name,
+                            "email_phone": new_contact,
+                            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        try:
+                            res = requests.post(WEB_APP_URL, json=payload)
+                            if res.status_code == 200:
+                                st.success("Đăng ký thành công! Vui lòng quay lại tab Đăng nhập.")
+                            else:
+                                st.error("Lỗi khi tạo tài khoản.")
+                        except Exception:
+                            st.error("Không thể kết nối máy chủ đăng ký.")
+
+            with tab_forgot:
+                with st.form("forgot_form"):
+                    fg_user = st.text_input("Nhập Tên đăng nhập của bạn", key="fg_u")
+                    fg_contact = st.text_input("Nhập Email hoặc Số điện thoại đã đăng ký", key="fg_c")
+                    fg_new_pass = st.text_input("Mật khẩu mới", type="password", key="fg_p1")
+                    fg_confirm_pass = st.text_input("Xác nhận mật khẩu mới", type="password", key="fg_p2")
+                    btn_forgot = st.form_submit_button("Đặt lại mật khẩu", use_container_width=True)
+
+                if btn_forgot:
+                    if not fg_user or not fg_contact or not fg_new_pass:
+                        st.warning("Vui lòng điền đầy đủ thông tin!")
+                    elif fg_new_pass != fg_confirm_pass:
+                        st.error("Mật khẩu xác nhận không khớp!")
+                    else:
+                        try:
+                            df = pd.read_csv(SHEET_CSV_URL, skiprows=2)
+                            df.columns = [c.strip() for c in df.columns]
+                            col_email = 'email_phone' if 'email_phone' in df.columns else 'Email/SĐT'
+                            match = df[(df['username'].astype(str) == fg_user) & (df[col_email].astype(str) == fg_contact)]
+                            
+                            if not match.empty:
+                                payload = {
+                                    "action": "update_password",
+                                    "username": fg_user,
+                                    "new_password": fg_new_pass
+                                }
+                                res = requests.post(WEB_APP_URL, json=payload)
+                                if res.status_code == 200:
+                                    st.success("Đổi mật khẩu thành công! Vui lòng quay lại tab Đăng nhập.")
+                                else:
+                                    st.error("Lỗi khi cập nhật mật khẩu.")
+                            else:
+                                st.error("Tên đăng nhập và Email/SĐT không khớp!")
+                        except Exception:
+                            st.error("Không thể xác minh thông tin.")
+
+        return False
+    return True
+
+if not check_login():
+    st.stop()
+
+# ==============================================================================
+# 2. CẤU HÌNH CSS & LƯU TRỮ KEY
+# ==============================================================================
 CONFIG_FILE = "config_keys.json"
 
 def load_config():
@@ -38,18 +208,11 @@ def save_config(data):
 
 config_data = load_config()
 
-st.set_page_config(
-    page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
-    page_icon="📝",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 st.markdown("""
 <style>
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
@@ -57,15 +220,52 @@ st.markdown("""
         gap: 0.4rem !important;
     }
     
+    .app-header {
+        background: linear-gradient(135deg, #7b0000 0%, #a81010 50%, #c41e1e 100%);
+        border: 1px solid #e0a800;
+        border-radius: 10px;
+        padding: 16px 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .app-header-title {
+        color: #ffffff;
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+        margin: 0;
+    }
+    .app-header-sub {
+        color: #ffd700;
+        font-size: 12px;
+        margin-top: 3px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+    .section-badge {
+        background: linear-gradient(90deg, #d4af37 0%, #f3e5ab 100%);
+        color: #4a2c00;
+        font-size: 10.5px;
+        font-weight: bold;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        display: inline-block;
+        margin-bottom: 4px;
+    }
     .word-page {
         background-color: #ffffff;
         color: #000000;
         width: 100%;
-        max-height: 460px;
+        max-height: 480px;
         overflow-y: auto;
         padding: 25px 35px;
         border: 1px solid #d3d3d3;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         font-family: 'Times New Roman', Times, serif;
         font-size: 13pt;
         line-height: 1.0;
@@ -106,6 +306,7 @@ st.markdown("""
         text-align: left !important;
         margin-top: 2pt;
         margin-bottom: 2pt;
+        font-size: 11pt !important;
     }
     .word-page p.title-bold {
         text-indent: 0 !important;
@@ -331,7 +532,6 @@ def parse_html_to_docx(html_text):
                             p.paragraph_format.space_after = Pt(0)
                             p.paragraph_format.space_before = Pt(0)
                             
-                            # Xử lý thụt lề cả khối Nơi nhận trong bảng
                             if 'noi-nhan' in c_attrs or 'noi-nhan' in attrs:
                                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                                 p.paragraph_format.left_indent = Cm(0.98)
@@ -354,7 +554,7 @@ def parse_html_to_docx(html_text):
                                 if clean_t:
                                     run = p.add_run(clean_t)
                                     run.font.name = 'Times New Roman'
-                                    run.font.size = Pt(12) if r_idx == 0 else Pt(13)
+                                    run.font.size = Pt(11) if ('noi-nhan' in c_attrs or 'noi-nhan' in attrs) else (Pt(12) if r_idx == 0 else Pt(13))
                                     if is_bold:
                                         run.bold = True
                                     if is_italic:
@@ -421,6 +621,7 @@ def parse_html_to_docx(html_text):
                     if clean_t:
                         run = p.add_run(clean_t)
                         run.font.name = 'Times New Roman'
+                        run.font.size = Pt(11) if 'noi-nhan' in attrs else Pt(13)
                         if is_bold:
                             run.bold = True
                         if is_italic:
@@ -434,11 +635,10 @@ def parse_html_to_docx(html_text):
 
 def clean_html_response(res_text):
     res_text = re.sub(r'<think>.*?</think>', '', res_text, flags=re.DOTALL)
-    # Loại bỏ code block markdown an toàn bằng mã ký tự chr(96)
     tick = chr(96)
     res_text = re.sub(rf'{tick}{{1,3}}[a-zA-Z]*', '', res_text)
     res_text = res_text.replace(tick, '')
-    res_text = re.sub(r'<!--.*?-->', '', res_text, flags=re.DOTALL)
+    res_text = re.sub(r'', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'^(Dưới đây là|Đây là|Gửi bạn|Sau đây là).*\n', '', res_text, flags=re.IGNORECASE)
     res_text = res_text.replace('&nbsp;', ' ')
     return res_text.strip()
@@ -454,60 +654,19 @@ def call_gemini_api(api_key, model_name, prompt):
     else:
         raise Exception(f"Lỗi API Gemini ({response.status_code}): {response.text}")
 
-def call_openai_api(api_key, model_name, prompt):
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    payload = {
-        "model": model_name,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=60)
-    if response.status_code == 200:
-        res_data = response.json()
-        return res_data['choices'][0]['message']['content']
-    else:
-        raise Exception(f"Lỗi API OpenAI ({response.status_code}): {response.text}")
-
-def call_ollama_api(model_name, prompt):
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": model_name, 
-        "prompt": prompt, 
-        "stream": False,
-        "raw": False,
-        "options": {
-            "num_predict": 1024,
-            "temperature": 0.1,
-            "top_p": 0.1
-        }
-    }
-    response = requests.post(url, json=payload, timeout=600)
-    if response.status_code == 200:
-        return response.json().get("response", "")
-    else:
-        raise Exception(f"Lỗi Ollama ({response.status_code}): {response.text}")
-
-def dispatch_ai_call(ai_engine, gemini_key, gemini_mod, openai_key, openai_mod, ollama_mod, prompt):
-    if ai_engine == "Google Gemini":
-        if not gemini_key:
-            raise Exception("Vui lòng nhập Gemini API Key ở cột cấu hình bên trái!")
-        return call_gemini_api(gemini_key, gemini_mod, prompt)
-    elif ai_engine == "OpenAI ChatGPT":
-        if not openai_key:
-            raise Exception("Vui lòng nhập OpenAI API Key ở cột cấu hình bên trái!")
-        return call_openai_api(openai_key, openai_mod, prompt)
-    else:
-        return call_ollama_api(ollama_mod, prompt)
-
-# Sidebar Cấu hình
+# ==============================================================================
+# 3. THANH SIDEBAR
+# ==============================================================================
 with st.sidebar:
-    st.header("⚙️ Cấu hình Thể thức & AI")
+    st.markdown("""
+    <div style="text-align: center; padding-top: 0px; padding-bottom: 4px;">
+        <span style="font-size: 28px;">🏛️</span>
+        <h3 style="color: #ffd700; margin: 2px 0 0 0; font-size: 17px; font-weight: bold;">HỆ THỐNG ĐIỀU HÀNH</h3>
+        <p style="color: #a0aec0; font-size: 11px; margin-top: 2px;">Chuẩn Thể Thức Đảng & Nhà Nước</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("---")
     
-    st.subheader("📐 Thể thức Văn bản")
     khoi_van_ban = st.radio(
         "Chọn Khối văn bản:",
         ["Khối Đảng", "Khối Nhà nước"],
@@ -524,104 +683,119 @@ with st.sidebar:
         default_agency = "UBND PHƯƠNG NHƠN TRẠCH"
     
     st.info(f"📌 **Áp dụng:** {the_thuc_note}")
-    st.divider()
+    st.write("---")
 
-    st.subheader("🤖 Cấu hình AI")
-    ai_engine = st.selectbox("AI xử lý chính", ["Google Gemini", "OpenAI ChatGPT", "Ollama (Local)"])
+    st.subheader("⚙️ Cấu hình AI")
+    ai_engine = st.selectbox("AI xử lý chính", ["Google Gemini"])
     
     gemini_api_key = config_data.get("gemini_key", "")
-    openai_api_key = config_data.get("openai_key", "")
-    gemini_model = "gemini-3.6-flash"
-    openai_model = "gpt-4o-mini"
-    ollama_model = "qwen3:4b"
-    
-    if ai_engine == "Google Gemini":
-        gemini_api_key = st.text_input("Gemini API key", value=gemini_api_key, type="password")
-        gemini_model = st.selectbox("Model", ["gemini-3.6-flash", "gemini-1.5-pro", "gemini-1.5-flash"])
-    elif ai_engine == "OpenAI ChatGPT":
-        openai_api_key = st.text_input("OpenAI API key", value=openai_api_key, type="password")
-        openai_model = st.selectbox("Model", ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"])
-    else:
-        ollama_model = st.text_input("Ollama Model", value="qwen3:4b")
+    gemini_api_key = st.text_input("Gemini API key", value=gemini_api_key, type="password")
+    gemini_model = st.selectbox("Model", ["gemini-3.6-flash", "gemini-1.5-pro", "gemini-1.5-flash"])
 
-    if st.button("💾 Lưu API Key vĩnh viễn"):
+    if st.button("💾 Lưu API Key vĩnh viễn", use_container_width=True):
         new_config = {
-            "gemini_key": gemini_api_key,
-            "openai_key": openai_api_key
+            "gemini_key": gemini_api_key
         }
         if save_config(new_config):
             st.success("Đã lưu API Key!")
         else:
             st.error("Lỗi khi lưu cấu hình!")
 
-# Màn hình chính
-st.title("📄 Phần mềm Cụ thể hóa Văn bản Hành chính")
+    st.write("---")
+    user_info = st.session_state.get("user_info", {})
+    with st.popover(f"👤 Tài khoản ({user_info.get('fullname', 'User')})"):
+        st.markdown(f"**Họ tên:** {user_info.get('fullname')}")
+        st.markdown(f"**Username:** {user_info.get('username')}")
+        st.markdown(f"**Liên hệ:** {user_info.get('email_phone')}")
+        st.write("---")
+        if st.button("🚪 Đăng xuất", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_info = {}
+            st.rerun()
 
+# ==============================================================================
+# 4. GIAO DIỆN CHÍNH
+# ==============================================================================
+st.markdown("""
+<div class="app-header">
+    <div>
+        <div class="app-header-title">🏛️ PHẦN MỀM CỤ THỂ HÓA VĂN BẢN HÀNH CHÍNH</div>
+        <div class="app-header-sub">HỆ THỐNG HỖ TRỢ BIÊN SOẠN & XỬ LÝ VĂN KIỆN ĐẢNG - CHÍNH QUYỀN TỰ ĐỘNG BẰNG AI</div>
+    </div>
+    <div style="font-size: 30px; font-weight: bold; color: #ffd700; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">VN</div>
+</div>
+""", unsafe_allow_html=True)
+
+# BƯỚC 1 & 2
 top_col1, top_col2 = st.columns(2)
 
 with top_col1:
-    st.markdown("##### 1. File nguồn & Loại văn bản")
+    st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
     uploaded_source = st.file_uploader(
-        "Tải file nguồn/Đề cương (.docx, .pdf, .xlsx...)",
-        type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
+        "Tải file nguồn/Đề cương (.docx, .pdf, .png, .jpg...):",
+        type=["doc", "docx", "xls", "xlsx", "pdf", "txt", "png", "jpg", "jpeg"],
         key="source_file"
     )
     source_text = read_uploaded_file(uploaded_source)
 
     doc_type = st.selectbox(
         "Chọn Loại văn bản đầu ra:", 
-        ["Công văn", "Kế hoạch", "Báo cáo", "Giấy mời", "Tờ trình", "Hướng dẫn", "Quy chế", "Quyết định", "Thông báo", "Khác"]
+        ["Kế hoạch", "Công văn", "Báo cáo", "Giấy mời", "Tờ trình", "Hướng dẫn", "Quy chế", "Quyết định", "Thông báo", "Khác"]
     )
 
 with top_col2:
-    st.markdown("##### 2. Yêu cầu & Cơ quan ban hành")
+    st.markdown('<span class="section-badge">BƯỚC 2</span> <b>Yêu cầu & Cơ quan ban hành</b>', unsafe_allow_html=True)
     req_detail = st.text_area(
-        "Anh muốn cụ thể hóa như thế nào?",
-        placeholder="VD: Cụ thể hóa văn bản cấp trên thành Kế hoạch của địa phương; bám sát Đề cương báo cáo tải lên...",
+        "Anh muốn cụ thể hóa như thế nào?:",
+        placeholder="Soạn thảo văn bản theo yêu cầu chỉ đạo...",
         height=68
     )
 
     co_quan_ban_hanh = st.text_input("Cơ quan ban hành dự thảo:", value=default_agency)
 
-st.markdown("##### 3. File mẫu riêng & Mẫu gợi ý")
-uploaded_sample = st.file_uploader(
-    "Tải file mẫu riêng (Nếu có file mẫu riêng):",
-    type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
-    key="sample_file"
-)
-sample_text = read_uploaded_file(uploaded_sample)
+# BƯỚC 3
+st.markdown('<br>', unsafe_allow_html=True)
+col3_1, col3_2 = st.columns(2)
 
-selected_builtin = st.selectbox(
-    f"📚 Mẫu gợi ý / Đề cương chuẩn ({'NĐ 30' if khoi_van_ban == 'Khối Nhà nước' else 'HD 05'}):",
-    ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys())
-)
+with col3_1:
+    st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
+    uploaded_sample = st.file_uploader(
+        "Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):",
+        type=["doc", "docx"],
+        key="sample_file"
+    )
+    sample_text = read_uploaded_file(uploaded_sample)
 
-if selected_builtin != "(Không chọn mẫu gợi ý)" and not sample_text:
-    sample_text = builtin_dict[selected_builtin]
-    with st.expander("👁️ Xem trước Đề cương/Mẫu gợi ý đã chọn:"):
-        st.code(sample_text, language="text")
+with col3_2:
+    st.markdown('<span style="color: #e53e3e; font-size: 13px;">📌</span> <b>Mẫu gợi ý / Đề cương chuẩn:</b>', unsafe_allow_html=True)
+    selected_builtin = st.selectbox(
+        "Mẫu gợi ý / Đề cương chuẩn:",
+        ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys()),
+        label_visibility="collapsed"
+    )
+
+    if selected_builtin != "(Không chọn mẫu gợi ý)" and not sample_text:
+        sample_text = builtin_dict[selected_builtin]
+        with st.expander("👁️ Xem trước Đề cương/Mẫu gợi ý đã chọn:"):
+            st.code(sample_text, language="text")
 
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🚀 PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True):
+if st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True):
     if not source_text.strip():
         st.warning("Vui lòng tải lên Văn bản nguồn!")
     else:
-        with st.spinner(f"AI ({ai_engine}) đang xử lý..."):
+        with st.spinner("Gemini đang xử lý..."):
             processed_source = source_text
             processed_sample = sample_text
-            if ai_engine == "Ollama (Local)":
-                if len(processed_source) > 2000:
-                    processed_source = processed_source[:2000] + "\n[Đã rút gọn văn bản nguồn]"
-                if len(processed_sample) > 1000:
-                    processed_sample = processed_sample[:1000] + "\n[Đã rút gọn văn bản mẫu]"
 
-            # SỬA ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI
             if khoi_van_ban == "Khối Đảng":
                 header_left = f"ĐẢNG BỘ THÀNH PHỐ ĐỒNG NAI<br><b>{co_quan_ban_hanh}</b><br>*<br>Số: ...-{'CV/ĐU' if doc_type == 'Công văn' else ('KH/ĐU' if doc_type == 'Kế hoạch' else ('BC/ĐU' if doc_type == 'Báo cáo' else ('GM/ĐU' if doc_type == 'Giấy mời' else ('TTr/ĐU' if doc_type == 'Tờ trình' else 'HD/ĐU'))))}<br><i>{'V/v ...' if doc_type in ['Công văn', 'Tờ trình'] else ''}</i>"
                 header_right = '<b><u>ĐẢNG CỘNG SẢN VIỆT NAM</u></b><br><i>Nhơn Trạch, ngày ... tháng ... năm 2026</i>'
+                signer_position = "<b>T/M BAN THƯỜNG VỤ</b><br><b>BÍ THƯ</b>"
             else:
                 header_left = f"ỦY BÀN NHÂN DÂN<br><b>{co_quan_ban_hanh}</b><br>────────<br>Số: .../UBND<br><i>{'V/v ...' if doc_type in ['Công văn', 'Tờ trình'] else ''}</i>"
                 header_right = '<b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><u>Độc lập - Tự do - Hạnh phúc</u></b><br>───────────<br><i>Nhơn Trạch, ngày ... tháng ... năm 2026</i>'
+                signer_position = "<b>TM. ỦY BAN NHÂN DÂN</b><br><b>CHỦ TỊCH</b>"
 
             if doc_type == "Công văn":
                 layout_structure = """
@@ -695,15 +869,14 @@ if st.button("🚀 PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", us
             4. Bảng Nơi nhận & Chữ ký (Dùng <table> 2 cột KHÔNG VIỀN ở cuối):
                <table style="width:100%; margin-top:25px;">
                  <tr>
-                   <td style="width:50%; font-size:11pt;" class="noi-nhan">
-                     <p class="noi-nhan"><b>Nơi nhận:</b></p>
+                   <td style="width:50%;" class="noi-nhan">
+                     <p class="noi-nhan"><b><u><i>Nơi nhận:</i></u></b></p>
                      <p class="noi-nhan">- Như trên;</p>
                      <p class="noi-nhan">- Lưu VP.</p>
                    </td>
                    <td style="text-align:center; width:50%;">
-                     <b>T/M {co_quan_ban_hanh}</b><br>
-                     {'BÍ THƯ' if khoi_van_ban == 'Khối Đảng' else 'CHỦ TỊCH'}<br><br><br><br>
-                     <b>[Họ và tên]</b>
+                     {signer_position}<br><br><br><br>
+                     <b>Họ và Tên</b>
                    </td>
                  </tr>
                </table>
@@ -728,9 +901,12 @@ if st.button("🚀 PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", us
             ---
             """
             try:
-                res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, prompt)
-                st.session_state.current_draft = clean_html_response(res)
-                st.session_state.chat_messages = []
+                if not gemini_api_key:
+                    st.error("Vui lòng nhập Gemini API Key ở cột bên trái!")
+                else:
+                    res = call_gemini_api(gemini_api_key, gemini_model, prompt)
+                    st.session_state.current_draft = clean_html_response(res)
+                    st.session_state.chat_messages = []
             except Exception as e:
                 st.error(f"Lỗi khi xử lý AI: {e}")
 
@@ -754,7 +930,7 @@ if st.session_state.current_draft:
         )
 
     with bottom_col2:
-        st.markdown(f"##### 💬 Chat AI sửa đổi ({ai_engine})")
+        st.markdown("##### 💬 Chat AI sửa đổi (Gemini)")
         st.caption("Nhập yêu cầu (VD: 'Sửa căn cứ 1', 'Bỏ mục II') để AI cập nhật trực tiếp lên trang Word bên trái.")
 
         chat_container = st.container(height=360)
@@ -790,7 +966,7 @@ if st.session_state.current_draft:
                         5. TUYỆT ĐỐI KHÔNG DÙNG &nbsp; TẠO KHOẢNG TRẮNG.
                         """
                         try:
-                            updated_res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, edit_prompt)
+                            updated_res = call_gemini_api(gemini_api_key, gemini_model, edit_prompt)
                             cleaned_res = clean_html_response(updated_res)
                             st.session_state.current_draft = cleaned_res
                             st.session_state.chat_messages.append({"role": "assistant", "content": "✅ Đã cập nhật văn bản lên trang Word!"})
