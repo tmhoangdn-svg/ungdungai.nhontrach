@@ -19,7 +19,9 @@ try:
 except ImportError:
     openpyxl = None
 
-# 1. CẤU HÌNH TRANG STREAMLIT
+# ==============================================================================
+# 1. CẤU HÌNH TRANG & ĐĂNG NHẬP
+# ==============================================================================
 st.set_page_config(
     page_title="Phần mềm Cụ thể hóa Văn bản Hành chính",
     page_icon="🏛️",
@@ -27,7 +29,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CẤU HÌNH ĐĂNG NHẬP / ĐĂNG KÝ (GOOGLE SHEET)
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
 
@@ -183,7 +184,9 @@ def check_login():
 if not check_login():
     st.stop()
 
-# 3. CẤU HÌNH LƯU KEY & GIAO DIỆN CHÍNH
+# ==============================================================================
+# 2. CẤU HÌNH GIAO DIỆN & KEY
+# ==============================================================================
 CONFIG_FILE = "config_keys.json"
 
 def load_config():
@@ -643,7 +646,9 @@ def dispatch_ai_call(ai_engine, gemini_key, gemini_mod, openai_key, openai_mod, 
     else:
         return call_ollama_api(ollama_mod, prompt)
 
-# 4. THANH SIDEBAR TÔNG ĐÔ - VÀNG
+# ==============================================================================
+# 3. THANH SIDEBAR
+# ==============================================================================
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -712,7 +717,9 @@ with st.sidebar:
             st.session_state.user_info = {}
             st.rerun()
 
-# 5. GIAO DIỆN CHÍNH
+# ==============================================================================
+# 4. GIAO DIỆN CHÍNH (ĐÚNG CHUẨN 100% THEO ẢNH)
+# ==============================================================================
 st.markdown("""
 <div class="app-header">
     <div>
@@ -723,14 +730,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# BƯỚC 1 & 2: CHIA 2 CỘT CÂN ĐỐI
+# BƯỚC 1 & 2
 top_col1, top_col2 = st.columns(2)
 
 with top_col1:
     st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
     uploaded_source = st.file_uploader(
-        "Tải file nguồn/Đề cương (.docx, .pdf, .xlsx...):",
-        type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
+        "Tải file nguồn/Đề cương (.docx, .pdf, .png, .jpg...):",
+        type=["doc", "docx", "xls", "xlsx", "pdf", "txt", "png", "jpg", "jpeg"],
         key="source_file"
     )
     source_text = read_uploaded_file(uploaded_source)
@@ -750,24 +757,25 @@ with top_col2:
 
     co_quan_ban_hanh = st.text_input("Cơ quan ban hành dự thảo:", value=default_agency)
 
-# BƯỚC 3: CHIA 2 CỘT CÂN ĐỐI VỚI BƯỚC 1 & 2
+# BƯỚC 3
 st.markdown('<br>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns(2)
 
 with col3_1:
-    st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng (Tùy chọn)</b>', unsafe_allow_html=True)
+    st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
     uploaded_sample = st.file_uploader(
         "Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):",
-        type=["doc", "docx", "xls", "xlsx", "pdf", "txt"],
+        type=["doc", "docx"],
         key="sample_file"
     )
     sample_text = read_uploaded_file(uploaded_sample)
 
 with col3_2:
-    st.markdown('<span class="section-badge">GỢI Ý</span> <b>Mẫu gợi ý / Đề cương chuẩn</b>', unsafe_allow_html=True)
+    st.markdown('<span style="color: #e53e3e; font-size: 13px;">📌</span> <b>Mẫu gợi ý / Đề cương chuẩn:</b>', unsafe_allow_html=True)
     selected_builtin = st.selectbox(
-        f"Mẫu gợi ý ({'NĐ 30' if khoi_van_ban == 'Khối Nhà nước' else 'HD 05'}):",
-        ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys())
+        "Mẫu gợi ý / Đề cương chuẩn:",
+        ["(Không chọn mẫu gợi ý)"] + list(builtin_dict.keys()),
+        label_visibility="collapsed"
     )
 
     if selected_builtin != "(Không chọn mẫu gợi ý)" and not sample_text:
@@ -902,7 +910,7 @@ if st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use
             ---
             """
             try:
-                res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, prompt)
+                res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_mod, prompt)
                 st.session_state.current_draft = clean_html_response(res)
                 st.session_state.chat_messages = []
             except Exception as e:
@@ -964,7 +972,7 @@ if st.session_state.current_draft:
                         5. TUYỆT ĐỐI KHÔNG DÙNG &nbsp; TẠO KHOẢNG TRẮNG.
                         """
                         try:
-                            updated_res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_model, edit_prompt)
+                            updated_res = dispatch_ai_call(ai_engine, gemini_api_key, gemini_model, openai_api_key, openai_model, ollama_mod, edit_prompt)
                             cleaned_res = clean_html_response(updated_res)
                             st.session_state.current_draft = cleaned_res
                             st.session_state.chat_messages.append({"role": "assistant", "content": "✅ Đã cập nhật văn bản lên trang Word!"})
