@@ -16,6 +16,24 @@ import json, io, re, os
 # ==============================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
+RULES_FILE = "ai_rules_memory.json"
+
+def load_ai_rules():
+    if os.path.exists(RULES_FILE):
+        try:
+            with open(RULES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_ai_rules(rules):
+    try:
+        with open(RULES_FILE, "w", encoding="utf-8") as f:
+            json.dump(rules, f, ensure_ascii=False, indent=2)
+        return True
+    except:
+        return False
 
 def check_login():
     if "logged_in" not in st.session_state:
@@ -386,6 +404,21 @@ with st.sidebar:
     api_key = st.text_input("Gemini API key", type="password")
     model_name = st.selectbox("Model", ["gemini-3.6-flash"])
 
+    # KHU VỰC QUẢN LÝ QUY TẮC GHI NHỚ
+    st.write("---")
+    st.subheader("🧠 Sổ tay ghi nhớ AI")
+    current_rules = load_ai_rules()
+    if current_rules:
+        st.caption("Các quy tắc AI đang ghi nhớ và áp dụng:")
+        for idx, r in enumerate(current_rules):
+            st.markdown(f"• {r}")
+        if st.button("🗑️ Xóa toàn bộ ghi nhớ", use_container_width=True):
+            save_ai_rules([])
+            st.success("Đã xóa bộ nhớ quy tắc!")
+            st.rerun()
+    else:
+        st.caption("Chưa có quy tắc ghi nhớ nào. Khi chat sửa đổi, anh có thể dặn 'Nhớ luôn quy tắc...' để AI tự lưu.")
+
     st.write("---")
     user_info = st.session_state.get("user_info", {})
     with st.popover(f"👤 Tài khoản ({user_info.get('fullname', 'User')})"):
@@ -501,6 +534,13 @@ if btn_process:
                 if de_cuong_goy_y != "(Không chọn mẫu gợi ý)":
                     de_cuong_prompt = f"\nÁP DỤNG ĐỀ CƯƠNG: {de_cuong_goy_y}"
 
+                # NẠP CÁC QUY TẮC ĐÃ GHI NHỚ TỪ TRƯỚC
+                saved_rules_prompt = ""
+                loaded_rules = load_ai_rules()
+                if loaded_rules:
+                    rules_str = "\n".join([f"- {r}" for r in loaded_rules])
+                    saved_rules_prompt = f"\nCÁC QUY TẮC CỐ ĐỊNH PHẢI TUÂN THỦ TỪ TRƯỚC ĐẾN NAY:\n{rules_str}\n"
+
                 rule_doc_type = ""
                 if loai_vb == "Công văn":
                     rule_doc_type = """
@@ -524,6 +564,7 @@ if btn_process:
                 YÊU CẦU CỤ THỂ HÓA: {yeu_cau}
                 {de_cuong_prompt}
                 {custom_template_prompt}
+                {saved_rules_prompt}
                 
                 DỮ LIỆU TÀI LIỆU NGUỒN:
                 {"".join(extracted_texts)}
@@ -846,9 +887,17 @@ if st.session_state.draft_text:
                     try:
                         genai.configure(api_key=api_key)
                         model = genai.GenerativeModel(model_name)
+                        
+                        # Nạp các quy tắc đã có để AI tham chiếu khi sửa
+                        saved_rules = load_ai_rules()
+                        rules_ctx = "\n".join([f"- {r}" for r in saved_rules]) if saved_rules else "Chưa có quy tắc riêng."
+                        
                         edit_prompt = f"""
                         BẢN DỰ THẢO HIỆN TẠI:
                         {st.session_state.draft_text}
+
+                        CÁC QUY TẮC ĐÃ LƯU TRƯỚC ĐÂY:
+                        {rules_ctx}
 
                         YÊU CẦU CHỈNH SỬA TỪ NGƯỜI DÙNG:
                         {edit_instruction}
@@ -865,6 +914,13 @@ if st.session_state.draft_text:
                             st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
                         elif "nhơn trạch" in edit_lower:
                             st.session_state.current_agency = st.session_state.current_agency.replace("ĐẠI PHƯỚC", "NHƠN TRẠCH").replace("Đại Phước", "Nhơn Trạch")
+                        
+                        # KIỂM TRA VÀ TỰ ĐỘNG LƯU VÀO BỘ NHỚ QUY TẮC
+                        keywords_remember = ["nhớ", "lưu ý", "từ nay", "các văn bản sau", "luôn luôn", "quy tắc"]
+                        if any(k in edit_lower for k in keywords_remember):
+                            if edit_instruction not in saved_rules:
+                                saved_rules.append(edit_instruction)
+                                save_ai_rules(saved_rules)
                         
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
