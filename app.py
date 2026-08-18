@@ -225,7 +225,7 @@ st.markdown("""
         border: 1px solid #e0a800;
         border-radius: 10px;
         padding: 16px 22px;
-        margin-bottom: 18px;
+        margin-bottom: 36px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         display: flex;
         align-items: center;
@@ -554,7 +554,7 @@ def parse_html_to_docx(html_text):
                                 if clean_t:
                                     run = p.add_run(clean_t)
                                     run.font.name = 'Times New Roman'
-                                    run.font.size = Pt(11) if ('noi-nhan' in c_attrs or 'noi-nhan' in attrs) else (Pt(12) if r_idx == 0 else Pt(13))
+                                    run.font.size = Pt(12) if r_idx == 0 else Pt(13)
                                     if is_bold:
                                         run.bold = True
                                     if is_italic:
@@ -621,7 +621,6 @@ def parse_html_to_docx(html_text):
                     if clean_t:
                         run = p.add_run(clean_t)
                         run.font.name = 'Times New Roman'
-                        run.font.size = Pt(11) if 'noi-nhan' in attrs else Pt(13)
                         if is_bold:
                             run.bold = True
                         if is_italic:
@@ -638,7 +637,7 @@ def clean_html_response(res_text):
     tick = chr(96)
     res_text = re.sub(rf'{tick}{{1,3}}[a-zA-Z]*', '', res_text)
     res_text = res_text.replace(tick, '')
-    res_text = re.sub(r'', '', res_text, flags=re.DOTALL)
+    res_text = re.sub(r'<!--.*?-->', '', res_text, flags=re.DOTALL)
     res_text = re.sub(r'^(Dưới đây là|Đây là|Gửi bạn|Sau đây là).*\n', '', res_text, flags=re.IGNORECASE)
     res_text = res_text.replace('&nbsp;', ' ')
     return res_text.strip()
