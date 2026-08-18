@@ -185,7 +185,7 @@ if not check_login():
     st.stop()
 
 # ==============================================================================
-# 2. CẤU HÌNH CSS GIAO DIỆN & THU GỌN KHOẢNG TRỐNG SIDEBAR
+# 2. CẤU HÌNH CSS & LƯU KEY
 # ==============================================================================
 CONFIG_FILE = "config_keys.json"
 
@@ -210,17 +210,15 @@ config_data = load_config()
 
 st.markdown("""
 <style>
-    /* Thu gọn khoảng trống trên cùng của Sidebar */
     section[data-testid="stSidebar"] > div:first-child {
-        padding-top: 0.8rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 1rem !important;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 0.2rem !important;
     }
-    
     .block-container {
-        padding-top: 0.8rem !important;
+        padding-top: 0.6rem !important;
         padding-bottom: 1.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
@@ -228,7 +226,6 @@ st.markdown("""
     div[data-testid="stVerticalBlock"] > div {
         gap: 0.35rem !important;
     }
-    
     .app-header {
         background: linear-gradient(135deg, #7b0000 0%, #a81010 50%, #c41e1e 100%);
         border: 1px solid #e0a800;
