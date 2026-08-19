@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 from datetime import datetime
 import google.generativeai as genai
-import groq  # Thư viện Groq cho khung chỉnh sửa
 import pypdf
 import docx
 from docx import Document
@@ -157,10 +156,10 @@ with st.sidebar:
         default_agency = "UBND PHƯƠNG NHƠN TRẠCH"
 
     st.info(f"📌 **Áp dụng:** {the_thuc_doc}")
-    st.subheader("⚙️ Cấu hình AI chính (Gemini)")
+    st.subheader("⚙️ Cấu hình AI (Gemini Pro)")
     api_key = st.text_input("Gemini API key", value=config_data.get("gemini_key", ""), type="password")
-    model_name = st.selectbox("Model Gemini", ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"])
-    if st.button("💾 Lưu Gemini Key vĩnh viễn", use_container_width=True):
+    model_name = st.selectbox("Model", ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"])
+    if st.button("💾 Lưu API Key vĩnh viễn", use_container_width=True):
         if save_config({"gemini_key": api_key}): st.success("Đã lưu!")
     
     st.write("---")
@@ -197,7 +196,7 @@ with col3_2:
         st.markdown(f'<div style="background-color: #161c24; border: 1px solid #2b6cb0; border-radius: 6px; padding: 15px;">{format_outline_to_html(current_default_outline)}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN (DÙNG GEMINI PRO)", type="primary", use_container_width=True)
+btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True)
 
 if "draft_text" not in st.session_state: st.session_state.draft_text = ""
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
@@ -283,7 +282,7 @@ if btn_process:
             except Exception as e:
                 st.error(f"Lỗi xử lý Gemini API: {str(e)}")
 
-# HIỂN THỊ TRANG A4 VÀ CHAT SỬA ĐỔI BẰNG GROQ RIÊNG BIỆT
+# HIỂN THỊ TRANG A4 VÀ CHAT SỬA ĐỔI DÙNG CHUNG GEMINI
 if st.session_state.draft_text:
     res_col1, res_col2 = st.columns([1.2, 0.8])
     with res_col1:
@@ -424,28 +423,21 @@ if st.session_state.draft_text:
         )
 
     with res_col2:
-        st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (DÙNG GROQ)')
-        groq_api_key = st.text_input("Nhập Groq API key (gsk_...)", type="password", key="groq_key_input", placeholder="Dán key gsk_... vào đây để chỉnh sửa")
-        edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=100, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
+        st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (GEMINI PRO)')
+        edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=120, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
         
         if st.button("Chỉnh sửa dự thảo", use_container_width=True):
-            if not groq_api_key:
-                st.error("Vui lòng nhập Groq API Key vào ô bên trên để chỉnh sửa!")
+            if not api_key:
+                st.error("Vui lòng nhập Gemini API Key ở cột bên trái để chỉnh sửa!")
             elif edit_instruction:
-                with st.spinner("Trợ lý Groq đang cập nhật lại dự thảo..."):
+                with st.spinner("Trợ lý Gemini đang cập nhật lại dự thảo..."):
                     try:
-                        client = groq.Groq(api_key=groq_api_key)
-                        completion = client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=[
-                                {"role": "system", "content": "Bạn là trợ lý hành chính chuyên nghiệp. Hãy cập nhật lại bản dự thảo văn bản theo đúng yêu cầu của người dùng, giữ nguyên định dạng, không dùng ký tự Markdown (*, #, _)."},
-                                {"role": "user", "content": f"BẢN DỰ THẢO HIỆN TẠI:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA: {edit_instruction}"}
-                            ],
-                            temperature=0.3
-                        )
-                        full_res = completion.choices[0].message.content
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel(model_name)
+                        res_edit = model.generate_content(f"BẢN DỰ THẢO:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA: {edit_instruction}\nHãy cập nhật lại toàn bộ văn bản theo yêu cầu. Không dùng ký tự Markdown.")
+                        full_res = res_edit.text
                         
-                        # Tự động bắt lệnh thay đổi địa danh để cập nhật tiêu đề đầu trang
+                        # Tự động đồng bộ đổi tên địa danh lên tiêu đề đầu trang
                         edit_lower = edit_instruction.lower()
                         if "đại phước" in edit_lower:
                             st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
@@ -456,7 +448,7 @@ if st.session_state.draft_text:
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Lỗi chỉnh sửa Groq: {str(e)}")
+                        st.error(f"Lỗi chỉnh sửa Gemini: {str(e)}")
 
         if st.session_state.chat_history:
             st.markdown("<br>", unsafe_allow_html=True)
