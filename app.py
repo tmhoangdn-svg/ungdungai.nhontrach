@@ -435,18 +435,42 @@ if st.session_state.draft_text:
     with res_col2:
         st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (GOOGLE GEMINI)')
         edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=120, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
+        
         if st.button("Chỉnh sửa dự thảo", use_container_width=True):
             if edit_instruction and api_key:
                 with st.spinner("AI đang cập nhật lại dự thảo..."):
                     try:
                         genai.configure(api_key=api_key)
                         model = genai.GenerativeModel(model_name)
-                        res_edit = model.generate_content(f"BẢN DỰ THẢO:\n{st.session_state.draft_text}\n\nYÊU CẦU: {edit_instruction}\nCập nhật toàn bộ văn bản. Không dùng Markdown.")
-                        st.session_state.draft_text = res_edit.text
+                        
+                        prompt_edit = f"""
+                        BẢN DỰ THẢO HIỆN TẠI:
+                        {st.session_state.draft_text}
+
+                        YÊU CẦU CHỈNH SỬA: {edit_instruction}
+
+                        HÃY CẬP NHẬT LẠI TOÀN BỘ BẢN DỰ THẢO THEO YÊU CẦU.
+                        ĐẶC BIỆT: Nếu người dùng yêu cầu thay đổi tên đơn vị / địa danh (ví dụ đổi từ Nhơn Trạch sang Đại Phước), hãy ghi thêm dòng này vào đầu kết quả:
+                        UPDATE_AGENCY: [Tên cơ quan mới đầy đủ, ví dụ: ĐẢNG ỦY PHƯƠNG ĐẠI PHƯỚC]
+                        TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
+                        """
+                        res_edit = model.generate_content(prompt_edit)
+                        full_res = res_edit.text
+                        
+                        # Tự động bắt lệnh đổi tên cơ quan để hiện lên tiêu đề đầu trang
+                        if "UPDATE_AGENCY:" in full_res:
+                            parts = full_res.split("UPDATE_AGENCY:")
+                            new_agency = parts[1].split("\n")[0].strip()
+                            st.session_state.current_agency = new_agency
+                            st.session_state.draft_text = full_res.replace(f"UPDATE_AGENCY: {new_agency}", "").strip()
+                        else:
+                            st.session_state.draft_text = full_res
+                            
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
                     except Exception as e:
                         st.error(f"Lỗi: {str(e)}")
+
         if st.session_state.chat_history:
             st.markdown("<br>", unsafe_allow_html=True)
             for cmd in reversed(st.session_state.chat_history):
