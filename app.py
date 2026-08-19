@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 import google.generativeai as genai
+import groq  # Thư viện Groq cho khung chỉnh sửa
 import pypdf
 import docx
 from docx import Document
@@ -11,9 +12,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import json, io, re, os
 
-# ==============================================================================
-# CẤU HÌNH & KHỞI TẠO
-# ==============================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1YHUgWJs3ZNH_6MVYI2Kwowsh7r0XVYaCXopvw1aD0FU/export?format=csv&gid=901150668"
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWB6-PRwFkezGzSjS29lrNBVnf03Dy0W1P4S0iDjJ9pIqgD5mDa-qKtc4NTw--IWoPgg/exec"
 CONFIG_FILE = "config_keys.json"
@@ -159,10 +157,10 @@ with st.sidebar:
         default_agency = "UBND PHƯƠNG NHƠN TRẠCH"
 
     st.info(f"📌 **Áp dụng:** {the_thuc_doc}")
-    st.subheader("⚙️ Cấu hình AI")
+    st.subheader("⚙️ Cấu hình AI chính (Gemini)")
     api_key = st.text_input("Gemini API key", value=config_data.get("gemini_key", ""), type="password")
-    model_name = st.selectbox("Model", ["gemini-3.6-flash", "gemini-1.5-pro", "gemini-1.5-flash"])
-    if st.button("💾 Lưu API Key vĩnh viễn", use_container_width=True):
+    model_name = st.selectbox("Model Gemini", ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"])
+    if st.button("💾 Lưu Gemini Key vĩnh viễn", use_container_width=True):
         if save_config({"gemini_key": api_key}): st.success("Đã lưu!")
     
     st.write("---")
@@ -176,7 +174,7 @@ st.markdown('<div class="app-header"><div><div class="app-header-title">🏛️ 
 col1, col2 = st.columns([1, 1])
 with col1:
     st.markdown('<span class="section-badge">BƯỚC 1</span> <b>File nguồn & Loại văn bản</b>', unsafe_allow_html=True)
-    uploaded_files = st.file_uploader("Tải file nguồn/Đề cương (.docx, .pdf, .png, .jpg...):", type=["pdf", "docx", "txt", "png", "jpg", "jpeg"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Tải file nguồn/Đề cương (.docx, .pdf, .txt):", type=["pdf", "docx", "txt"], accept_multiple_files=True)
     loai_vb = st.selectbox("Chọn Loại văn bản đầu ra:", ["Kế hoạch", "Công văn", "Báo cáo", "Tờ trình", "Thông báo", "Quyết định", "Hướng dẫn"])
 
 with col2:
@@ -189,7 +187,7 @@ st.markdown('<br>', unsafe_allow_html=True)
 col3_1, col3_2 = st.columns([1, 1])
 with col3_1:
     st.markdown('<span class="section-badge">BƯỚC 3</span> <b>File mẫu riêng & Mẫu gợi ý chuẩn</b>', unsafe_allow_html=True)
-    custom_template_file = st.file_uploader("Tải file mẫu riêng (Chỉ lấy thể thức/khung mẫu):", type=["doc", "docx", "pdf"], key="custom_template")
+    custom_template_file = st.file_uploader("Tải file mẫu riêng (.doc, .docx, .pdf):", type=["doc", "docx", "pdf"], key="custom_template")
 
 with col3_2:
     st.markdown(f'<span style="color: #ffd700; font-size: 13px;">📌</span> <b>Mẫu gợi ý / Đề cương chuẩn ({the_thuc}):</b>', unsafe_allow_html=True)
@@ -199,7 +197,7 @@ with col3_2:
         st.markdown(f'<div style="background-color: #161c24; border: 1px solid #2b6cb0; border-radius: 6px; padding: 15px;">{format_outline_to_html(current_default_outline)}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN", type="primary", use_container_width=True)
+btn_process = st.button("⚡ PHÂN TÍCH & CỤ THỂ HÓA VĂN BẢN (DÙNG GEMINI PRO)", type="primary", use_container_width=True)
 
 if "draft_text" not in st.session_state: st.session_state.draft_text = ""
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
@@ -210,13 +208,12 @@ if btn_process:
     elif not uploaded_files and not yeu_cau:
         st.warning("Vui lòng tải file nguồn hoặc nhập yêu cầu!")
     else:
-        with st.spinner("Đang phân tích dữ liệu và tổng hợp văn bản chuẩn thể thức..."):
+        with st.spinner("Đang phân tích dữ liệu và tổng hợp văn bản bằng Gemini Pro..."):
             try:
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel(model_name)
                 content_parts, extracted_texts = [], []
                 
-                # Đọc file nguồn cấp trên
                 for uf in uploaded_files:
                     bytes_data = uf.read()
                     if uf.name.lower().endswith('.pdf'):
@@ -231,29 +228,23 @@ if btn_process:
                         extracted_texts.append(f"--- NỘI DUNG FILE NGUỒN {uf.name} ---\n" + "\n".join([p.text for p in doc_file.paragraphs]))
                     else: content_parts.append({"mime_type": uf.type, "data": bytes_data})
                 
-                # XỬ LÝ FILE MẪU RIÊNG (Truyền trực tiếp vào model để Gemini đọc thông minh chuẩn xác)
                 custom_template_parts = []
                 if custom_template_file is not None:
                     tpl_bytes = custom_template_file.read()
                     mime_type = custom_template_file.type if custom_template_file.type else "application/msword"
                     if custom_template_file.name.lower().endswith('.pdf'): mime_type = "application/pdf"
                     elif custom_template_file.name.lower().endswith('.docx'): mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    
                     custom_template_parts.append({"mime_type": mime_type, "data": tpl_bytes})
 
-                # LOGIC CHỌN KHUNG SƯỞN CHO PROMPT
                 outline_prompt = ""
                 if custom_template_file is not None:
                     outline_prompt = """
                     BẮT BUỘC TUÂN THỦ TUYỆT ĐỐI CẤU TRÚC VÀ KHUNG SƯỞN CỦA FILE MẪU VĂN BẢN RIÊNG ĐƯỢC ĐÍNH KÈM:
                     - Hãy phân tích bố cục, hệ thống các mục (I, II, III...), cách phân chia đề mục của file mẫu riêng để làm khuôn mẫu cấu trúc.
-                    - LẤY NỘI DUNG TỪ TÀI LIỆU CẤP TRÊN ĐỂ VIẾT VÀO CÁC MỤC ĐÓ, TUYỆT ĐỐI KHÔNG COPY NỘI DUNG CŨ CỦA FILE MẪU VÀO DỰ THẢO. Chỉ lấy khung định hình, nội dung bên trong phải hoàn toàn mới theo đúng chỉ đạo cấp trên.
+                    - LẤY NỘI DUNG TỪ TÀI LIỆU CẤP TRÊN ĐỂ VIẾT VÀO CÁC MỤC ĐÓ, TUYỆT ĐỐI KHÔNG COPY NỘI DUNG CŨ CỦA FILE MẪU VÀO DỰ THẢO.
                     """
                 elif selected_builtin != "(Không chọn mẫu gợi ý)":
-                    outline_prompt = f"""
-                    BẮT BUỘC ÁP DỤNG ĐỀ CƯƠNG CHUẨN THEO ĐÚNG THỂ THỨC (HD 05 / NĐ 30):
-                    {current_default_outline}
-                    """
+                    outline_prompt = f"BẮT BUỘC ÁP DỤNG ĐỀ CƯƠNG CHUẨN (HD 05 / NĐ 30):\n{current_default_outline}"
                 else:
                     outline_prompt = "Áp dụng cấu trúc chuẩn hành chính."
 
@@ -271,7 +262,7 @@ if btn_process:
                 
                 QUY TẮC BẮT BUỘC:
                 {rule_doc_type}
-                - Không viết Quốc hiệu, Tiêu ngữ, Tên cơ quan, Số/Ký hiệu, Ngày tháng ở đầu bài (Vì giao diện tự chèn).
+                - Không viết Quốc hiệu, Tiêu ngữ, Tên cơ quan, Số/Ký hiệu, Ngày tháng ở đầu bài.
                 - Không dùng ký tự Markdown (*, #, _).
                 - Ở mục cuối cùng bắt buộc ghi đúng định dạng:
                   Nơi nhận:
@@ -288,11 +279,11 @@ if btn_process:
                 st.session_state.draft_text = response.text
                 st.session_state.current_agency = co_quan
                 st.session_state.chat_history = []
-                st.success("Đã cụ thể hóa văn bản thành công!")
+                st.success("Đã cụ thể hóa văn bản thành công bằng Gemini Pro!")
             except Exception as e:
-                st.error(f"Lỗi xử lý API: {str(e)}")
+                st.error(f"Lỗi xử lý Gemini API: {str(e)}")
 
-# HIỂN THỊ TRANG A4 VÀ CHAT SỬA ĐỔI
+# HIỂN THỊ TRANG A4 VÀ CHAT SỬA ĐỔI BẰNG GROQ RIÊNG BIỆT
 if st.session_state.draft_text:
     res_col1, res_col2 = st.columns([1.2, 0.8])
     with res_col1:
@@ -433,43 +424,39 @@ if st.session_state.draft_text:
         )
 
     with res_col2:
-        st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (GOOGLE GEMINI)')
-        edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=120, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
+        st.markdown('##### 💬 TRỢ LÝ AI CHỈNH SỬA (DÙNG GROQ)')
+        groq_api_key = st.text_input("Nhập Groq API key (gsk_...)", type="password", key="groq_key_input", placeholder="Dán key gsk_... vào đây để chỉnh sửa")
+        edit_instruction = st.text_area("Nhập yêu cầu chỉnh sửa...", height=100, label_visibility="collapsed", placeholder="Nhập yêu cầu chỉnh sửa văn bản...")
         
         if st.button("Chỉnh sửa dự thảo", use_container_width=True):
-            if edit_instruction and api_key:
-                with st.spinner("AI đang cập nhật lại dự thảo..."):
+            if not groq_api_key:
+                st.error("Vui lòng nhập Groq API Key vào ô bên trên để chỉnh sửa!")
+            elif edit_instruction:
+                with st.spinner("Trợ lý Groq đang cập nhật lại dự thảo..."):
                     try:
-                        genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel(model_name)
+                        client = groq.Groq(api_key=groq_api_key)
+                        completion = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[
+                                {"role": "system", "content": "Bạn là trợ lý hành chính chuyên nghiệp. Hãy cập nhật lại bản dự thảo văn bản theo đúng yêu cầu của người dùng, giữ nguyên định dạng, không dùng ký tự Markdown (*, #, _)."},
+                                {"role": "user", "content": f"BẢN DỰ THẢO HIỆN TẠI:\n{st.session_state.draft_text}\n\nYÊU CẦU CHỈNH SỬA: {edit_instruction}"}
+                            ],
+                            temperature=0.3
+                        )
+                        full_res = completion.choices[0].message.content
                         
-                        prompt_edit = f"""
-                        BẢN DỰ THẢO HIỆN TẠI:
-                        {st.session_state.draft_text}
-
-                        YÊU CẦU CHỈNH SỬA: {edit_instruction}
-
-                        HÃY CẬP NHẬT LẠI TOÀN BỘ BẢN DỰ THẢO THEO YÊU CẦU.
-                        ĐẶC BIỆT: Nếu người dùng yêu cầu thay đổi tên đơn vị / địa danh (ví dụ đổi từ Nhơn Trạch sang Đại Phước), hãy ghi thêm dòng này vào đầu kết quả:
-                        UPDATE_AGENCY: [Tên cơ quan mới đầy đủ, ví dụ: ĐẢNG ỦY PHƯƠNG ĐẠI PHƯỚC]
-                        TUYỆT ĐỐI KHÔNG DÙNG KÝ TỰ MARKDOWN (*, #, _).
-                        """
-                        res_edit = model.generate_content(prompt_edit)
-                        full_res = res_edit.text
-                        
-                        # Tự động bắt lệnh đổi tên cơ quan để hiện lên tiêu đề đầu trang
-                        if "UPDATE_AGENCY:" in full_res:
-                            parts = full_res.split("UPDATE_AGENCY:")
-                            new_agency = parts[1].split("\n")[0].strip()
-                            st.session_state.current_agency = new_agency
-                            st.session_state.draft_text = full_res.replace(f"UPDATE_AGENCY: {new_agency}", "").strip()
-                        else:
-                            st.session_state.draft_text = full_res
+                        # Tự động bắt lệnh thay đổi địa danh để cập nhật tiêu đề đầu trang
+                        edit_lower = edit_instruction.lower()
+                        if "đại phước" in edit_lower:
+                            st.session_state.current_agency = st.session_state.current_agency.replace("NHƠN TRẠCH", "ĐẠI PHƯỚC").replace("Nhơn Trạch", "Đại Phước")
+                        elif "nhơn trạch" in edit_lower:
+                            st.session_state.current_agency = st.session_state.current_agency.replace("ĐẠI PHƯỚC", "NHƠN TRẠCH").replace("Đại Phước", "Nhơn Trạch")
                             
+                        st.session_state.draft_text = full_res
                         st.session_state.chat_history.append(edit_instruction)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Lỗi: {str(e)}")
+                        st.error(f"Lỗi chỉnh sửa Groq: {str(e)}")
 
         if st.session_state.chat_history:
             st.markdown("<br>", unsafe_allow_html=True)
