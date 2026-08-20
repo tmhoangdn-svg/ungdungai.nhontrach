@@ -202,21 +202,13 @@ if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
 def call_gemini(prompt_text, parts=None):
     genai.configure(api_key=api_key)
-    # Tự động chọn model thông minh: Thử Pro trước, nếu lỗi tự chuyển Flash
-    models_to_try = ["gemini-1.5-pro", "gemini-1.5-flash"]
-    last_error = None
-    for m_name in models_to_try:
-        try:
-            model = genai.GenerativeModel(m_name)
-            if parts:
-                response = model.generate_content([prompt_text] + parts)
-            else:
-                response = model.generate_content(prompt_text)
-            return response.text
-        except Exception as e:
-            last_error = e
-            continue
-    raise last_error
+    # Sử dụng model gemini-1.5-flash chuẩn ổn định, tránh lỗi 404
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    if parts:
+        response = model.generate_content([prompt_text] + parts)
+    else:
+        response = model.generate_content(prompt_text)
+    return response.text
 
 if btn_process:
     if not api_key:
